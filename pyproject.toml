@@ -1,0 +1,29 @@
+[project]
+name = "chatsentry-data"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi>=0.135.0",
+    "uvicorn>=0.42.0",
+    "minio>=7.2.0",
+    "psycopg2-binary>=2.9.0",
+    "pandas>=3.0.0",
+    "huggingface_hub>=1.9.0",
+    "python-dotenv>=1.2.0",
+    "pyyaml>=6.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "httpx>=0.27.0",
+    "ruff>=0.8.0",
+]
+
+[tool.ruff]
+line-length = 88
+select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-v"

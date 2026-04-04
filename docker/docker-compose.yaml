@@ -1,0 +1,70 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: chatsentry_pg
+      POSTGRES_DB: chatsentry
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      - ./init_sql:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d chatsentry"]
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: admin
+      MINIO_ROOT_PASSWORD: chatsentry_minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+
+  minio-init:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z-cpuv1
+    container_name: minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    command: |
+      mc alias set myminio http://minio:9000 admin chatsentry_minio
+      mc mb --ignore-existing myminio/zulip-raw-messages
+      mc mb --ignore-existing myminio/zulip-training-data
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5050:8080"
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    container_name: api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:chatsentry_pg@postgres:5432/chatsentry
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=admin
+      - MINIO_SECRET_KEY=chatsentry_minio
+      - HF_TOKEN=${HF_TOKEN}
+
+volumes:
+  postgres_data:
