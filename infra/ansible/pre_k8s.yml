@@ -1,6 +1,6 @@
 ---
 # pre_k8s.yml — Run BEFORE installing k3s
-# Disables firewall, creates local storage directory, sets kernel params.
+# Disables firewall, installs Docker, NVIDIA Toolkit, sets up local storage directory.
 #
 # Usage:
 #   export ANSIBLE_HOST=$(terraform -chdir=../terraform output -raw floating_ip_out)
@@ -15,64 +15,134 @@
 
     # ── Firewall ────────────────────────────────────────────────────────────
 
-    - name: Disable and mask firewalld
+    - name: Disable and mask firewalld (not installed on Ubuntu, ignore if absent)
       ansible.builtin.systemd:
         name: firewalld
         state: stopped
         enabled: false
         masked: true
-      ignore_errors: true  # not installed on Ubuntu
+      ignore_errors: true
 
-    - name: Disable ufw if present
+    - name: Disable ufw (Ubuntu 24.04 firewall — would block k3s CNI ports)
       ansible.builtin.systemd:
         name: ufw
         state: stopped
         enabled: false
       ignore_errors: true
 
-    # ── System packages ─────────────────────────────────────────────────────
+    # ── Base packages ───────────────────────────────────────────────────────
 
     - name: Update apt cache
       ansible.builtin.apt:
         update_cache: true
         cache_valid_time: 3600
 
-    - name: Install required system packages
+    - name: Install base packages
       ansible.builtin.apt:
         name:
           - git
           - curl
           - wget
-          - open-iscsi
-          - nfs-common
-          - python3-pip
-          - python3-openstackclient
           - jq
+          - ca-certificates
+          - gnupg
+          - lsb-release
         state: present
 
-    # ── Kernel parameters ───────────────────────────────────────────────────
+    # ── Docker ──────────────────────────────────────────────────────────────
 
-    - name: Enable IP forwarding
-      ansible.posix.sysctl:
-        name: net.ipv4.ip_forward
-        value: "1"
-        state: present
-        reload: true
+    - name: Create Docker keyring directory
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        mode: "0755"
 
-    - name: Enable bridge netfilter (loaded by k3s on start, ignore if not yet available)
-      ansible.posix.sysctl:
-        name: net.bridge.bridge-nf-call-iptables
-        value: "1"
+    - name: Add Docker GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+          gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      args:
+        creates: /etc/apt/keyrings/docker.gpg
+
+    - name: Add Docker apt repository
+      ansible.builtin.shell: |
+        echo \
+          "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+          https://download.docker.com/linux/ubuntu \
+          $(lsb_release -cs) stable" | \
+          tee /etc/apt/sources.list.d/docker.list > /dev/null
+      args:
+        creates: /etc/apt/sources.list.d/docker.list
+
+    - name: Install Docker
+      ansible.builtin.apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
         state: present
-        reload: true
-      ignore_errors: true
+        update_cache: true
+
+    - name: Enable and start Docker service
+      ansible.builtin.systemd:
+        name: docker
+        state: started
+        enabled: true
+
+    - name: Add cc user to docker group
+      ansible.builtin.user:
+        name: cc
+        groups: docker
+        append: true
+
+    - name: Write Docker daemon config
+      ansible.builtin.copy:
+        dest: /etc/docker/daemon.json
+        content: |
+          {
+            "log-driver": "json-file",
+            "log-opts": {
+              "max-size": "10m",
+              "max-file": "3"
+            }
+          }
+        owner: root
+        group: root
+        mode: "0644"
+
+    - name: Restart Docker to apply daemon config
+      ansible.builtin.systemd:
+        name: docker
+        state: restarted
+
+    # ── NVIDIA Container Toolkit ────────────────────────────────────────────
+    # Installed here so K3s can auto-detect it on first boot.
+
+    - name: Add NVIDIA Container Toolkit GPG key
+      ansible.builtin.shell: |
+        curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+          gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+      args:
+        creates: /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+
+    - name: Add NVIDIA Container Toolkit apt repository
+      ansible.builtin.shell: |
+        curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+          sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+          tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+      changed_when: true
+
+    - name: Install nvidia-container-toolkit
+      ansible.builtin.apt:
+        name: nvidia-container-toolkit
+        state: present
+        update_cache: true
 
     # ── Local storage directory ─────────────────────────────────────────────
-    # Chameleon TACC KVM does not provide Cinder block storage.
-    # k3s local-path provisioner uses the root disk instead.
-    # MLflow artifacts and Zulip uploads are stored in Chameleon Object Store.
+    # k3s local-path provisioner uses the root disk.
+    # MLflow artifacts and Zulip uploads go to Chameleon Object Store (Swift).
 
-    - name: Create local-path provisioner data directory on root disk
+    - name: Create local-path provisioner data directory
       ansible.builtin.file:
         path: "{{ local_path_data_dir }}"
         state: directory
@@ -86,23 +156,3 @@
     - name: Print disk info
       ansible.builtin.debug:
         msg: "{{ df_out.stdout }}"
-
-    # ── OpenStack CLI config ─────────────────────────────────────────────────
-    # Copies the local clouds.yaml to the VM so Ansible can create object store
-    # containers from the VM in post_k8s.yml.
-
-    - name: Create OpenStack config directory on VM
-      ansible.builtin.file:
-        path: /home/cc/.config/openstack
-        state: directory
-        owner: cc
-        group: cc
-        mode: "0700"
-
-    - name: Copy clouds.yaml to VM
-      ansible.builtin.copy:
-        src: "{{ lookup('env', 'HOME') }}/.config/openstack/clouds.yaml"
-        dest: /home/cc/.config/openstack/clouds.yaml
-        owner: cc
-        group: cc
-        mode: "0600"

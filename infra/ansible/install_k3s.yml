@@ -17,7 +17,7 @@
       ansible.builtin.shell: |
         curl -sfL https://get.k3s.io | \
           INSTALL_K3S_VERSION="{{ k3s_version }}" \
-          INSTALL_K3S_EXEC="server --disable traefik --disable servicelb" \
+          INSTALL_K3S_EXEC="server --disable traefik --disable servicelb --write-kubeconfig-mode 644" \
           sh -
       args:
         creates: /usr/local/bin/k3s  # idempotent: skip if already installed
@@ -71,49 +71,34 @@
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       changed_when: true
 
-    # ── NVIDIA GPU support ───────────────────────────────────────────────────
+    # ── NVIDIA Kubernetes Configuration ──────────────────────────────────────
+    # Host tools were installed in pre_k8s.yml, so K3s natively configured containerd.
 
-    - name: Install NVIDIA Container Toolkit repo key
+    - name: Create NVIDIA RuntimeClass
       ansible.builtin.shell: |
-        curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
-          gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-      args:
-        creates: /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
-
-    - name: Add NVIDIA Container Toolkit apt repository
-      ansible.builtin.shell: |
-        distribution=$(. /etc/os-release; echo ${ID}${VERSION_ID})
-        curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
-          sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
-          tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
-      args:
-        creates: /etc/apt/sources.list.d/nvidia-container-toolkit.list
-
-    - name: Install nvidia-container-toolkit
-      ansible.builtin.apt:
-        name: nvidia-container-toolkit
-        state: present
-        update_cache: true
-
-    - name: Configure nvidia runtime for containerd (k3s uses containerd)
-      ansible.builtin.command: nvidia-ctk runtime configure --runtime=containerd
+        cat <<EOF | kubectl apply -f -
+        apiVersion: node.k8s.io/v1
+        kind: RuntimeClass
+        metadata:
+          name: nvidia
+        handler: nvidia
+        EOF
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       changed_when: true
-
-    - name: Restart k3s to pick up nvidia runtime
-      ansible.builtin.systemd:
-        name: k3s
-        state: restarted
-
-    - name: Wait for k3s to be ready again after restart
-      ansible.builtin.wait_for:
-        port: 6443
-        host: 127.0.0.1
-        timeout: 120
 
     - name: Apply NVIDIA k8s-device-plugin DaemonSet
       ansible.builtin.shell: |
         kubectl apply -f \
-          https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/{{ nvidia_device_plugin_version }}/deployments/static/nvidia-device-plugin.yml
+          https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/{{ nvidia_device_plugin_version | default('v0.14.5') }}/deployments/static/nvidia-device-plugin.yml
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: true
+
+    - name: Patch NVIDIA device plugin to use nvidia RuntimeClass
+      ansible.builtin.shell: |
+        kubectl patch daemonset nvidia-device-plugin-daemonset -n kube-system \
+          -p '{"spec": {"template": {"spec": {"runtimeClassName": "nvidia"}}}}'
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       changed_when: true
@@ -142,18 +127,24 @@
       until: ingress_wait.rc == 0
       changed_when: false
 
-    - name: Patch nginx-ingress service to NodePort (Chameleon has no cloud LB)
+    # On Chameleon bare-metal there is no cloud load balancer.
+    # hostNetwork: true binds nginx directly on the node's port 80/443.
+    - name: Patch nginx-ingress to use hostNetwork (bare-metal Chameleon)
       ansible.builtin.shell: |
-        kubectl patch svc ingress-nginx-controller -n ingress-nginx \
-          --type='json' \
-          -p='[
-            {"op":"replace","path":"/spec/type","value":"NodePort"},
-            {"op":"replace","path":"/spec/ports/0/nodePort","value":30080},
-            {"op":"replace","path":"/spec/ports/1/nodePort","value":30443}
-          ]'
+        kubectl patch deployment ingress-nginx-controller -n ingress-nginx \
+          --type=json \
+          -p='[{"op":"add","path":"/spec/template/spec/hostNetwork","value":true}]'
       environment:
         KUBECONFIG: /etc/rancher/k3s/k3s.yaml
       changed_when: true
+
+    - name: Wait for nginx-ingress to be ready after hostNetwork patch
+      ansible.builtin.shell: |
+        kubectl rollout status deployment/ingress-nginx-controller \
+          -n ingress-nginx --timeout=120s
+      environment:
+        KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+      changed_when: false
 
     # ── Summary ──────────────────────────────────────────────────────────────
 

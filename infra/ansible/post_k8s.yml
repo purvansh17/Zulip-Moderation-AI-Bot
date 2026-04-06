@@ -27,7 +27,7 @@
         - "{{ os_zulip_avatars_bucket }}"
       environment:
         OS_CLOUD: openstack
-        HOME: /home/cc
+      delegate_to: localhost  # runs on your local machine using your clouds.yaml
       changed_when: true
 
     # ── Copy manifests to VM ─────────────────────────────────────────────────
@@ -237,6 +237,35 @@
     - name: Print final status
       ansible.builtin.debug:
         msg: "{{ final_status.stdout_lines }}"
+
+    # ── Zulip realm creation (first deploy only) ────────────────────────────
+    # Checks if a realm already exists before generating the link.
+    # Idempotent: skipped on redeployments where data persists.
+
+    - name: Check if Zulip realm already exists
+      ansible.builtin.shell: |
+        kubectl exec -n zulip deploy/zulip -- \
+          su zulip -c "/home/zulip/deployments/current/manage.py shell -c 'from zerver.models import Realm; print(Realm.objects.exists())'"
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: realm_exists
+      changed_when: false
+      ignore_errors: true
+
+    - name: Generate Zulip realm creation link (first deploy only)
+      ansible.builtin.shell: |
+        kubectl exec -n zulip deploy/zulip -- \
+          su zulip -c "/home/zulip/deployments/current/manage.py generate_realm_creation_link"
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      register: realm_link
+      when: realm_exists.stdout is not defined or 'False' in realm_exists.stdout
+      changed_when: true
+
+    - name: Print realm creation link
+      ansible.builtin.debug:
+        msg: "{{ realm_link.stdout }}"
+      when: realm_link.stdout is defined and realm_link.stdout != ''
 
     - name: Print access URLs
       ansible.builtin.debug:

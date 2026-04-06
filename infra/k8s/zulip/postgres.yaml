@@ -49,7 +49,7 @@ spec:
     spec:
       containers:
         - name: postgres
-          image: postgres:16
+          image: zulip/zulip-postgresql:14
           ports:
             - containerPort: 5432
           env:
@@ -87,7 +87,8 @@ spec:
             - name: postgres-storage
               mountPath: /var/lib/postgresql/data
             - name: init-scripts
-              mountPath: /docker-entrypoint-initdb.d
+              mountPath: /docker-entrypoint-initdb.d/create_mlflow_db.sh
+              subPath: create_mlflow_db.sh
           readinessProbe:
             exec:
               command: ["pg_isready", "-U", "zulip"]

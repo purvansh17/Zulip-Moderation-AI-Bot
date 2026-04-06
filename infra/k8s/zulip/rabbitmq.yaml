@@ -54,12 +54,31 @@ spec:
           volumeMounts:
             - name: rabbitmq-storage
               mountPath: /var/lib/rabbitmq
+              
+          # Restarts the container if the core application deadlocks
+          livenessProbe:
+            exec:
+              command:
+              - rabbitmq-diagnostics
+              - -q
+              - ping
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 3
+            
+          # Blocks traffic and dependent apps until the broker is fully ready
           readinessProbe:
             exec:
-              command: ["rabbitmq-diagnostics", "-q", "ping"]
+              command:
+              - rabbitmq-diagnostics
+              - -q
+              - ping
             initialDelaySeconds: 20
-            periodSeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 10
             failureThreshold: 5
+            
       volumes:
         - name: rabbitmq-storage
           persistentVolumeClaim:
