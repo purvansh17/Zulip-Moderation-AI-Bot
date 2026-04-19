@@ -7,3 +7,4 @@ dist/
 build/
 .venv/
 combined_dataset.csv
+tests/
