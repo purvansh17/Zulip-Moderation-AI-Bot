@@ -4,6 +4,7 @@ import torch
 from fastapi import FastAPI
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+import torch.quantization
 
 # Load configuration from YAML
 with open("serving_config.yaml", "r") as f:
@@ -17,7 +18,6 @@ tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
 
 # MODEL-LEVEL OPTIMIZATION: INT8 Quantization
-import torch.quantization
 model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
 
 model.eval()
