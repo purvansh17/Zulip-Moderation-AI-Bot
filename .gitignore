@@ -3,6 +3,11 @@
 __pycache__/
 *.pyc
 .env
+.venv/
+.opencode/
+*.egg-info/
+dist/
+build/
 
 # serving
 payload.json
@@ -15,3 +20,6 @@ mlruns/
 *.bin
 *.db
 *.csv
+
+# data
+docker/.env

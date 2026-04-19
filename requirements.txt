@@ -14,5 +14,15 @@ mlflow
 joblib
 tqdm
 
+# data
+starlette>=0.41.0,<1.0.0
+minio>=7.2.0
+psycopg2-binary>=2.9.0
+python-dotenv>=1.2.0
+ftfy>=6.3.1
+emoji>=2.15.0
+markdownify>=1.2.2
+great-expectations>=1.15.2
+
 # dev
 ruff==0.15.11
