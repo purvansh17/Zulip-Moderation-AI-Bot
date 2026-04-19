@@ -46,6 +46,7 @@ def clean_df() -> pd.DataFrame:
 def test_build_expectation_suite_has_six_expectations():
     """Suite contains exactly 6 expectations (D-02)."""
     import great_expectations as gx
+
     from src.data.data_quality import build_expectation_suite
 
     context = gx.get_context(mode="ephemeral")
@@ -56,6 +57,7 @@ def test_build_expectation_suite_has_six_expectations():
 def test_build_expectation_suite_custom_thresholds():
     """Suite accepts custom thresholds (D-05)."""
     import great_expectations as gx
+
     from src.data.data_quality import build_expectation_suite
 
     context = gx.get_context(mode="ephemeral")

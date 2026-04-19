@@ -31,5 +31,7 @@ def test_csv_chunking_produces_expected_chunks():
 
 
 def test_csv_total_row_count():
-    total_rows = sum(len(chunk) for chunk in pd.read_csv(CSV_PATH, chunksize=CHUNK_SIZE))
+    total_rows = sum(
+        len(chunk) for chunk in pd.read_csv(CSV_PATH, chunksize=CHUNK_SIZE)
+    )
     assert total_rows == 391_645, f"Expected 391,645 rows, got {total_rows}"

@@ -1,10 +1,11 @@
 import time
-import yaml
+
 import torch
+import torch.quantization
+import yaml
 from fastapi import FastAPI
 from pydantic import BaseModel
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-import torch.quantization
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 # Load configuration from YAML
 with open("serving_config.yaml", "r") as f:

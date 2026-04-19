@@ -3,7 +3,6 @@
 Tests cover CSV loading, POST dispatch, and RPS rate control.
 """
 
-import asyncio
 import csv
 import tempfile
 import time
@@ -11,7 +10,6 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-
 from src.data.synthetic_traffic_generator import (
     _build_flag_payload,
     _build_message_payload,
@@ -165,7 +163,6 @@ async def test_run_traffic_generator_respects_rps() -> None:
         "text,is_suicide,is_toxicity\nTest message 1,0,0\nTest message 2,0,0\n"
     )
 
-    import tempfile
 
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=".csv", delete=False, encoding="utf-8"

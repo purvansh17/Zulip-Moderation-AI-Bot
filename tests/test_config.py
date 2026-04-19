@@ -1,7 +1,5 @@
 """Tests for YAML-backed Config loading."""
 
-import os
-import tempfile
 
 import pytest
 

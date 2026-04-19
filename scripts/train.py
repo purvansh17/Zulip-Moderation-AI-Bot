@@ -14,11 +14,13 @@ import yaml
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
+
 from src.data import MultiTaskTextDataset, load_splits
 from src.metrics import compute_multitask_metrics, flatten_metrics, save_json
 from src.models import TfidfLogRegMultiOutput, TransformerMultiHeadModel
 
 mp.set_sharing_strategy("file_system")
+
 
 def deep_update(base: dict, updates: dict):
     result = dict(base)
@@ -35,7 +37,9 @@ def resolve_run_config(full_cfg: dict, run_name: str):
         raise ValueError("Config must contain a top-level 'runs' section")
 
     if run_name not in full_cfg["runs"]:
-        raise ValueError(f"Run '{run_name}' not found in config. Available: {list(full_cfg['runs'].keys())}")
+        raise ValueError(
+            f"Run '{run_name}' not found in config. Available: {list(full_cfg['runs'].keys())}"
+        )
 
     base_cfg = {k: v for k, v in full_cfg.items() if k != "runs"}
     run_overrides = full_cfg["runs"][run_name]
@@ -57,22 +61,29 @@ def load_config(path: str):
 def get_git_sha():
     env_sha = os.getenv("GIT_SHA")
     if env_sha:
-      return env_sha
+        return env_sha
 
     candidate_paths = [
-    Path.cwd(),
-    Path(__file__).resolve().parents[1],
-    Path("/home/cc/Zulip-Moderation-AI-Bot"),
+        Path.cwd(),
+        Path(__file__).resolve().parents[1],
+        Path("/home/cc/Zulip-Moderation-AI-Bot"),
     ]
     for path in candidate_paths:
         try:
-          print("Trying sha")
-          sha = subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"],stderr=subprocess.STDOUT,).decode().strip()
-          print(f"Resolved sha : {sha}")
-          return sha
+            print("Trying sha")
+            sha = (
+                subprocess.check_output(
+                    ["git", "-C", str(path), "rev-parse", "HEAD"],
+                    stderr=subprocess.STDOUT,
+                )
+                .decode()
+                .strip()
+            )
+            print(f"Resolved sha : {sha}")
+            return sha
         except Exception as e:
-          print(f"Git SHA lookup failed for {path}: {e}")
-          return "unknown"
+            print(f"Git SHA lookup failed for {path}: {e}")
+            return "unknown"
 
 
 def get_device():
@@ -96,9 +107,13 @@ def build_dataloaders(cfg):
         cfg["data"]["val_path"],
         cfg["data"]["test_path"],
     )
-    tokenizer = AutoTokenizer.from_pretrained(cfg["model"]["encoder_name"], use_fast=True)
+    tokenizer = AutoTokenizer.from_pretrained(
+        cfg["model"]["encoder_name"], use_fast=True
+    )
 
-    train_ds = MultiTaskTextDataset(bundle.train_df, tokenizer, cfg["data"]["max_length"])
+    train_ds = MultiTaskTextDataset(
+        bundle.train_df, tokenizer, cfg["data"]["max_length"]
+    )
     val_ds = MultiTaskTextDataset(bundle.val_df, tokenizer, cfg["data"]["max_length"])
     test_ds = MultiTaskTextDataset(bundle.test_df, tokenizer, cfg["data"]["max_length"])
 
@@ -259,7 +274,7 @@ def run_transformer(cfg):
         model.train()
         epoch_loss = 0.0
 
-        loop = tqdm(train_loader, desc=f"Epoch {epoch+1}")
+        loop = tqdm(train_loader, desc=f"Epoch {epoch + 1}")
         for batch in loop:
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
@@ -275,7 +290,9 @@ def run_transformer(cfg):
             epoch_loss += loss.item()
             loop.set_postfix(loss=loss.item())
 
-        mlflow.log_metric("train_loss", epoch_loss / max(len(train_loader), 1), step=epoch)
+        mlflow.log_metric(
+            "train_loss", epoch_loss / max(len(train_loader), 1), step=epoch
+        )
 
         val_metrics, _, _ = evaluate_transformer(
             model, val_loader, device, {"suicide": 0.5, "toxicity": 0.5}
@@ -314,7 +331,6 @@ def main():
     full_cfg = load_config(args.config)
     cfg = resolve_run_config(full_cfg, args.run)
 
-
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", cfg["mlflow"]["tracking_uri"])
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(cfg["experiment"]["name"])
@@ -326,7 +342,6 @@ def main():
         print("CWD:", Path.cwd())
         print("__file__:", Path(__file__).resolve())
         print("Repo guess:", Path(__file__).resolve().parents[1])
-
 
         for k, v in collect_env_info().items():
             mlflow.log_param(k, v)
@@ -344,16 +359,29 @@ def main():
         )
 
         if cfg["model"]["type"] == "tfidf_logreg":
-            model, train_time, thresholds, val_metrics, test_metrics = run_tfidf_baseline(cfg)
+            model, train_time, thresholds, val_metrics, test_metrics = (
+                run_tfidf_baseline(cfg)
+            )
             mlflow.sklearn.log_model(model.model, artifact_path="model")
         else:
-            model, train_time, thresholds, val_metrics, test_metrics, best_model_path = run_transformer(cfg)
+            (
+                model,
+                train_time,
+                thresholds,
+                val_metrics,
+                test_metrics,
+                best_model_path,
+            ) = run_transformer(cfg)
             mlflow.pytorch.log_model(model, artifact_path="model")
             mlflow.log_artifact(str(best_model_path))
 
         mlflow.log_metric("train_time_sec", train_time)
-        mlflow.log_metrics({f"val_{k}": v for k, v in flatten_metrics(val_metrics).items()})
-        mlflow.log_metrics({f"test_{k}": v for k, v in flatten_metrics(test_metrics).items()})
+        mlflow.log_metrics(
+            {f"val_{k}": v for k, v in flatten_metrics(val_metrics).items()}
+        )
+        mlflow.log_metrics(
+            {f"test_{k}": v for k, v in flatten_metrics(test_metrics).items()}
+        )
         Path(cfg["output"]["dir"]).mkdir(parents=True, exist_ok=True)
         thresholds_path = Path(cfg["output"]["dir"]) / "thresholds.json"
         metrics_path = Path(cfg["output"]["dir"]) / "final_metrics.json"

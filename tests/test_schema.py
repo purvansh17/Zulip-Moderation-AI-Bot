@@ -1,6 +1,5 @@
 """Integration tests for PostgreSQL schema. Requires running Docker services."""
 
-import pytest
 
 
 def test_users_table_exists(pg_conn):

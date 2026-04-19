@@ -1,6 +1,7 @@
 """Tests for synthetic data generation. Unit tests run without HuggingFace API."""
-from src.data.prompts import PROMPTS_BY_LABEL, LABEL_DISTRIBUTION, GenerationPrompt
-from src.data.synthetic_generator import _parse_generated_text, TARGET_TOTAL
+
+from src.data.prompts import LABEL_DISTRIBUTION, PROMPTS_BY_LABEL
+from src.data.synthetic_generator import TARGET_TOTAL, _parse_generated_text
 
 
 def test_prompts_cover_all_labels():
