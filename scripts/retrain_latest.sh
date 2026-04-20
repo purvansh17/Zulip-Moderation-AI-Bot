@@ -82,7 +82,7 @@ echo "== Backing up MLflow runs and models =="
 
 if [[ -d "$REPO_ROOT/configs/mlflow_data" ]]; then
   rclone sync --s3-no-check-bucket "$REPO_ROOT/configs/mlflow_data" \
-  "rclone_s3:proj09-retrain-runs-al9581/mlflow-backup/$SESSION_NAME/mlflow_data"
+  "rclone_s3:proj09_object_store/mlflow-backup/$SESSION_NAME/mlflow_data"
 else
   echo "No mlflow_data directory found at $REPO_ROOT/configs/mlflow_data"
 fi
@@ -92,7 +92,7 @@ BEST_MODEL_PATH="$REPO_ROOT/outputs/$RUN_NAME/best_model.pt"
 if [[ -f "$BEST_MODEL_PATH" ]]; then
   echo "Copying $BEST_MODEL_PATH to container storage..."
   rclone copyto --s3-no-check-bucket "$BEST_MODEL_PATH" \
-    "rclone_s3:proj09-retrain-runs-al9581/model_backups/$SESSION_NAME/best_models/$RUN_NAME/best_model.pt"
+    "rclone_s3:proj09_object_store/model_backups/$SESSION_NAME/best_models/$RUN_NAME/best_model.pt"
 else
   echo "No best_model.pt found at $BEST_MODEL_PATH"
 fi
