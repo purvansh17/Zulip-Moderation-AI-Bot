@@ -62,11 +62,7 @@ def _restore_model_from_s3() -> bool:
     logger.info("Model not in cache, downloading from S3...")
     try:
         minio = get_minio_client()
-        objects = list(
-            minio.list_objects(
-                config.BUCKET_RAW, prefix="models/Qwen2.5-1.5B/", recursive=True
-            )
-        )
+        objects = list(minio.list_objects(config.BUCKET_RAW, prefix="models/Qwen2.5-1.5B/", recursive=True))
         if not objects:
             logger.warning("No model in S3, will download from HuggingFace")
             return False
@@ -100,9 +96,7 @@ def _load_model() -> tuple:
         _restore_model_from_s3()
         logger.info("Loading %s...", MODEL_ID)
         _tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-        _model = AutoModelForCausalLM.from_pretrained(
-            MODEL_ID, torch_dtype=torch.float32
-        )
+        _model = AutoModelForCausalLM.from_pretrained(MODEL_ID, torch_dtype=torch.float32)
         logger.info(
             "Model loaded: %.0fM params",
             sum(p.numel() for p in _model.parameters()) / 1e6,
@@ -110,9 +104,7 @@ def _load_model() -> tuple:
     return _model, _tokenizer
 
 
-def generate_text(
-    prompt: str, max_new_tokens: int = 250, temperature: float = 0.8
-) -> str:
+def generate_text(prompt: str, max_new_tokens: int = 250, temperature: float = 0.8) -> str:
     """Generate text from a prompt using the local model.
 
     Args:
@@ -135,9 +127,7 @@ def generate_text(
             repetition_penalty=1.15,
             pad_token_id=tokenizer.eos_token_id,
         )
-    return tokenizer.decode(
-        output[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True
-    )
+    return tokenizer.decode(output[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True)
 
 
 def _parse_numbered_list(text: str) -> list[str]:
@@ -226,9 +216,7 @@ def generate_training_data(
         while generated < target_count:
             rows = generate_batch(label_type, count=10)
             if not rows:
-                logger.warning(
-                    "No messages generated for %s, skipping batch", label_type
-                )
+                logger.warning("No messages generated for %s, skipping batch", label_type)
                 break
             for row in rows:
                 if generated >= target_count:
@@ -281,9 +269,7 @@ def generate_test_message(
     prompt_obj = PROMPTS_BY_LABEL[label_type]
     # Modify prompt to generate just 1 message
     single_prompt = (
-        prompt_obj.prompt.replace("Generate 10 new", "Generate 1 new")
-        .replace("numbered 1-10", "")
-        .replace("1-", "1")
+        prompt_obj.prompt.replace("Generate 10 new", "Generate 1 new").replace("numbered 1-10", "").replace("1-", "1")
     )
 
     raw = generate_text(single_prompt, max_new_tokens=100, temperature=0.9)
@@ -328,9 +314,7 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    parser = argparse.ArgumentParser(
-        description="Generate synthetic data using local Qwen2.5-1.5B"
-    )
+    parser = argparse.ArgumentParser(description="Generate synthetic data using local Qwen2.5-1.5B")
     parser.add_argument(
         "--mode",
         choices=["training", "test"],

@@ -84,9 +84,7 @@ def build_expectation_suite(
         )
     )
 
-    suite.add_expectation(
-        gx.expectations.ExpectColumnValuesToNotBeNull(column="cleaned_text")
-    )
+    suite.add_expectation(gx.expectations.ExpectColumnValuesToNotBeNull(column="cleaned_text"))
 
     logger.info(
         "Built expectation suite '%s' with %d expectations",
@@ -169,9 +167,7 @@ def validate_training_data(
 
 _EXPECTATION_LABELS = {
     "expect_column_to_exist": "Required Column Present",
-    "expect_column_value_lengths_to_be_between": (
-        "Text Length Within Bounds (10–5000 chars)"
-    ),
+    "expect_column_value_lengths_to_be_between": ("Text Length Within Bounds (10–5000 chars)"),
     "expect_column_values_to_not_match_regex": ("No Corrupt Data (e.g. #ERROR!)"),
     "expect_column_values_to_not_be_null": "No Missing Values",
     "expect_column_values_to_be_in_set": "Valid Label Values (0 or 1)",
@@ -210,14 +206,11 @@ def _generate_data_docs_html(result, suite: ExpectationSuite) -> str:
             elif unexpected:
                 detail = f" — {unexpected}"
 
-        rows.append(
-            f'<tr class="{status_class}">'
-            f"<td>{label}</td>"
-            f"<td>{column}</td>"
-            f"<td>{status}{detail}</td>"
-            f"</tr>"
-        )
+        rows.append(f'<tr class="{status_class}"><td>{label}</td><td>{column}</td><td>{status}{detail}</td></tr>')
 
+    passed = result.statistics.get("successful_expectations", 0)
+    total = result.statistics.get("evaluated_expectations", 0)
+    status_str = "PASSED" if result.success else "FAILED"
     html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -235,8 +228,8 @@ def _generate_data_docs_html(result, suite: ExpectationSuite) -> str:
 <body>
     <h1>ChatSentry Data Quality Report</h1>
     <div class="summary">
-        <p><strong>Status:</strong> {"PASSED" if result.success else "FAILED"}</p>
-        <p><strong>Expectations:</strong> {result.statistics.get("successful_expectations", 0)}/{result.statistics.get("evaluated_expectations", 0)} passed</p>
+        <p><strong>Status:</strong> {status_str}</p>
+        <p><strong>Expectations:</strong> {passed}/{total} passed</p>
     </div>
     <table>
         <tr><th>Expectation</th><th>Column</th><th>Status</th></tr>

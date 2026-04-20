@@ -66,9 +66,7 @@ def ingest_csv(csv_path: str = CSV_PATH, bucket: str = config.BUCKET_RAW) -> int
         )
 
         chunk_count += 1
-        logger.info(
-            "Uploaded chunk %d (%d rows) to %s/%s", i, len(chunk), bucket, object_name
-        )
+        logger.info("Uploaded chunk %d (%d rows) to %s/%s", i, len(chunk), bucket, object_name)
 
         # Free memory (Pitfall 5)
         del csv_bytes

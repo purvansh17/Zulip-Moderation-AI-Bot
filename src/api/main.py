@@ -103,8 +103,7 @@ def _persist_message(cleaned_body: dict[str, Any]) -> None:
             user_id = row[0] if row else _get_default_user(cur)
 
             cur.execute(
-                "INSERT INTO messages (id, user_id, text, cleaned_text, source) "
-                "VALUES (%s, %s, %s, %s, %s)",
+                "INSERT INTO messages (id, user_id, text, cleaned_text, source) VALUES (%s, %s, %s, %s, %s)",
                 (message_id, user_id, raw_text, cleaned_text, source),
             )
         conn.commit()
@@ -147,8 +146,7 @@ def _persist_flag(cleaned_body: dict[str, Any]) -> None:
 
             if message_id:
                 cur.execute(
-                    "INSERT INTO flags (id, message_id, flagged_by, reason, source) "
-                    "VALUES (%s, %s, %s, %s, 'real')",
+                    "INSERT INTO flags (id, message_id, flagged_by, reason, source) VALUES (%s, %s, %s, %s, 'real')",
                     (flag_id, message_id, flagged_by, reason),
                 )
                 conn.commit()

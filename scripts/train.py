@@ -37,9 +37,7 @@ def resolve_run_config(full_cfg: dict, run_name: str):
         raise ValueError("Config must contain a top-level 'runs' section")
 
     if run_name not in full_cfg["runs"]:
-        raise ValueError(
-            f"Run '{run_name}' not found in config. Available: {list(full_cfg['runs'].keys())}"
-        )
+        raise ValueError(f"Run '{run_name}' not found in config. Available: {list(full_cfg['runs'].keys())}")
 
     base_cfg = {k: v for k, v in full_cfg.items() if k != "runs"}
     run_overrides = full_cfg["runs"][run_name]
@@ -107,13 +105,9 @@ def build_dataloaders(cfg):
         cfg["data"]["val_path"],
         cfg["data"]["test_path"],
     )
-    tokenizer = AutoTokenizer.from_pretrained(
-        cfg["model"]["encoder_name"], use_fast=True
-    )
+    tokenizer = AutoTokenizer.from_pretrained(cfg["model"]["encoder_name"], use_fast=True)
 
-    train_ds = MultiTaskTextDataset(
-        bundle.train_df, tokenizer, cfg["data"]["max_length"]
-    )
+    train_ds = MultiTaskTextDataset(bundle.train_df, tokenizer, cfg["data"]["max_length"])
     val_ds = MultiTaskTextDataset(bundle.val_df, tokenizer, cfg["data"]["max_length"])
     test_ds = MultiTaskTextDataset(bundle.test_df, tokenizer, cfg["data"]["max_length"])
 
@@ -290,13 +284,9 @@ def run_transformer(cfg):
             epoch_loss += loss.item()
             loop.set_postfix(loss=loss.item())
 
-        mlflow.log_metric(
-            "train_loss", epoch_loss / max(len(train_loader), 1), step=epoch
-        )
+        mlflow.log_metric("train_loss", epoch_loss / max(len(train_loader), 1), step=epoch)
 
-        val_metrics, _, _ = evaluate_transformer(
-            model, val_loader, device, {"suicide": 0.5, "toxicity": 0.5}
-        )
+        val_metrics, _, _ = evaluate_transformer(model, val_loader, device, {"suicide": 0.5, "toxicity": 0.5})
         flat_val = {f"val_{k}": v for k, v in flatten_metrics(val_metrics).items()}
         mlflow.log_metrics(flat_val, step=epoch)
 
@@ -308,9 +298,7 @@ def run_transformer(cfg):
 
     model.load_state_dict(torch.load(best_model_path, map_location=device))
 
-    val_metrics, val_y, val_prob = evaluate_transformer(
-        model, val_loader, device, {"suicide": 0.5, "toxicity": 0.5}
-    )
+    val_metrics, val_y, val_prob = evaluate_transformer(model, val_loader, device, {"suicide": 0.5, "toxicity": 0.5})
 
     thresholds = {"suicide": 0.5, "toxicity": 0.5}
     if cfg["evaluation"].get("threshold_tuning", False):
@@ -359,9 +347,7 @@ def main():
         )
 
         if cfg["model"]["type"] == "tfidf_logreg":
-            model, train_time, thresholds, val_metrics, test_metrics = (
-                run_tfidf_baseline(cfg)
-            )
+            model, train_time, thresholds, val_metrics, test_metrics = run_tfidf_baseline(cfg)
             mlflow.sklearn.log_model(model.model, artifact_path="model")
         else:
             (
@@ -376,12 +362,8 @@ def main():
             mlflow.log_artifact(str(best_model_path))
 
         mlflow.log_metric("train_time_sec", train_time)
-        mlflow.log_metrics(
-            {f"val_{k}": v for k, v in flatten_metrics(val_metrics).items()}
-        )
-        mlflow.log_metrics(
-            {f"test_{k}": v for k, v in flatten_metrics(test_metrics).items()}
-        )
+        mlflow.log_metrics({f"val_{k}": v for k, v in flatten_metrics(val_metrics).items()})
+        mlflow.log_metrics({f"test_{k}": v for k, v in flatten_metrics(test_metrics).items()})
         Path(cfg["output"]["dir"]).mkdir(parents=True, exist_ok=True)
         thresholds_path = Path(cfg["output"]["dir"]) / "thresholds.json"
         metrics_path = Path(cfg["output"]["dir"]) / "final_metrics.json"

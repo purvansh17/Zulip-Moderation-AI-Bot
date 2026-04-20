@@ -14,7 +14,8 @@ with open("serving_config.yaml", "r") as f:
 app = FastAPI()
 
 # Setup Model & Tokenizer
-# TODO: MODEL_NAME is hardcoded — serving_config.yaml has a model_name key that's never read. Use config["model_name"] instead.
+# TODO: MODEL_NAME is hardcoded — serving_config.yaml has a model_name key
+# that's never read. Use config["model_name"] instead.
 MODEL_NAME = "GroNLP/hateBERT"
 tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
@@ -56,9 +57,7 @@ class ZulipRequest(BaseModel):
 
 # Prediction Logic
 def get_prediction(text: str):
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(
-        device
-    )
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True).to(device)
     with torch.no_grad():
         outputs = model(**inputs)
         probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
@@ -86,9 +85,7 @@ async def moderate_message(request: ZulipRequest):
 
     if self_harm > config["thresholds"]["self_harm_alert"]:
         response_action = "ALERT_ADMIN"
-        reason = (
-            "High self-harm confidence detected. Messaging mental health resources."
-        )
+        reason = "High self-harm confidence detected. Messaging mental health resources."
     elif toxicity > config["thresholds"]["toxicity_high"]:
         response_action = "HIDE_AND_STRIKE"
         reason = "High toxicity confidence. Message hidden, strike recorded."
