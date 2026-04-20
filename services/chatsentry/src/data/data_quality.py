@@ -218,6 +218,9 @@ def _generate_data_docs_html(result, suite: ExpectationSuite) -> str:
             f"</tr>"
         )
 
+    successful = result.statistics.get("successful_expectations", 0)
+    evaluated = result.statistics.get("evaluated_expectations", 0)
+
     html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -236,7 +239,7 @@ def _generate_data_docs_html(result, suite: ExpectationSuite) -> str:
     <h1>ChatSentry Data Quality Report</h1>
     <div class="summary">
         <p><strong>Status:</strong> {"PASSED" if result.success else "FAILED"}</p>
-        <p><strong>Expectations:</strong> {result.statistics.get("successful_expectations", 0)}/{result.statistics.get("evaluated_expectations", 0)} passed</p>
+        <p><strong>Expectations:</strong> {successful}/{evaluated} passed</p>
     </div>
     <table>
         <tr><th>Expectation</th><th>Column</th><th>Status</th></tr>

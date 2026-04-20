@@ -95,7 +95,6 @@ def _persist_message(cleaned_body: dict[str, Any]) -> None:
     try:
         with conn.cursor() as cur:
             sender_email = cleaned_body.get("sender_email")
-            sender_name = cleaned_body.get("sender_full_name") or sender_email or cleaned_body.get("user_id", "unknown")
 
             if sender_email:
                 # Upsert user by email — creates on first seen, stable across messages
