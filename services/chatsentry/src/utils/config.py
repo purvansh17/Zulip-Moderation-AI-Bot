@@ -6,9 +6,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DEFAULTS_PATH = os.path.join(
-    os.path.dirname(__file__), "..", "..", "config", "pipeline.yaml"
-)
+DEFAULTS_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "config", "pipeline.yaml")
 
 
 def _load_yaml_defaults(path: str = DEFAULTS_PATH) -> dict:
@@ -70,9 +68,7 @@ def _env_kwargs() -> dict:
         "MINIO_ACCESS_KEY": os.environ.get("MINIO_ACCESS_KEY", "admin"),
         "MINIO_SECRET_KEY": os.environ.get("MINIO_SECRET_KEY", "chatsentry_minio"),
         "MINIO_SECURE": os.environ.get("MINIO_SECURE", "false").lower() == "true",
-        "S3_ENDPOINT": os.environ.get(
-            "S3_ENDPOINT", "chi.tacc.chameleoncloud.org:7480"
-        ),
+        "S3_ENDPOINT": os.environ.get("S3_ENDPOINT", "chi.tacc.chameleoncloud.org:7480"),
         "S3_SECURE": os.environ.get("S3_SECURE", "true").lower() == "true",
     }
 

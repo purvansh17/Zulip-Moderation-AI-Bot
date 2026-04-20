@@ -62,18 +62,14 @@ def _build_few_shot_prompt(label: str, examples: list[str], count: int = 10) -> 
 
 
 TOXIC_PROMPT = GenerationPrompt(
-    prompt=_build_few_shot_prompt(
-        "toxic (insults, threats, hate speech)", TOXIC_EXAMPLES
-    ),
+    prompt=_build_few_shot_prompt("toxic (insults, threats, hate speech)", TOXIC_EXAMPLES),
     is_suicide=False,
     is_toxicity=True,
     label_type="toxic",
 )
 
 SUICIDE_PROMPT = GenerationPrompt(
-    prompt=_build_few_shot_prompt(
-        "expressing suicidal thoughts or self-harm", SUICIDE_EXAMPLES
-    ),
+    prompt=_build_few_shot_prompt("expressing suicidal thoughts or self-harm", SUICIDE_EXAMPLES),
     is_suicide=True,
     is_toxicity=False,
     label_type="suicide",
@@ -81,8 +77,7 @@ SUICIDE_PROMPT = GenerationPrompt(
 
 BENIGN_PROMPT = GenerationPrompt(
     prompt=_build_few_shot_prompt(
-        "normal, friendly chat messages (project updates, code reviews, "
-        "casual conversation, asking for help)",
+        "normal, friendly chat messages (project updates, code reviews, casual conversation, asking for help)",
         BENIGN_EXAMPLES,
     ),
     is_suicide=False,

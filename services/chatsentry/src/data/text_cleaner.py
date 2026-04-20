@@ -30,14 +30,10 @@ logger = logging.getLogger(__name__)
 # PII regex patterns (module-level for testability, per D-07)
 # ---------------------------------------------------------------------------
 
-EMAIL_PATTERN: re.Pattern[str] = re.compile(
-    r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
-)
+EMAIL_PATTERN: re.Pattern[str] = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
 """Matches standard email addresses. Replaced with [EMAIL]."""
 
-PHONE_PATTERN: re.Pattern[str] = re.compile(
-    r"(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}"
-)
+PHONE_PATTERN: re.Pattern[str] = re.compile(r"(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}")
 """Matches US-style phone numbers. Replaced with [PHONE]."""
 
 USERNAME_PATTERN: re.Pattern[str] = re.compile(r"@\w+")
@@ -77,9 +73,7 @@ def strip_markdown(text: str) -> str:
         Plain text with formatting removed.
     """
     # Phase 1: strip HTML tags
-    text = markdownify(
-        text, strip=["a", "b", "i", "img", "code", "pre", "p", "div", "span"]
-    )
+    text = markdownify(text, strip=["a", "b", "i", "img", "code", "pre", "p", "div", "span"])
     # Phase 2: unescape backslash-escaped Markdown markers (markdownify escapes * _ ~ `)
     text = re.sub(r"\\([*_~`])", r"\1", text)
     # Phase 3: strip Markdown syntax markers

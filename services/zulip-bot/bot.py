@@ -29,18 +29,18 @@ log = logging.getLogger(__name__)
 
 # ── Config from environment ────────────────────────────────────────────────────
 
-ZULIP_SITE        = os.environ["ZULIP_SITE"]        # e.g. https://zulip.129.114.26.93.nip.io
-ZULIP_EMAIL       = os.environ["ZULIP_BOT_EMAIL"]   # bot email from Zulip admin
-ZULIP_API_KEY     = os.environ["ZULIP_BOT_API_KEY"] # bot API key from Zulip admin
+ZULIP_SITE = os.environ["ZULIP_SITE"]  # e.g. https://zulip.129.114.26.93.nip.io
+ZULIP_EMAIL = os.environ["ZULIP_BOT_EMAIL"]  # bot email from Zulip admin
+ZULIP_API_KEY = os.environ["ZULIP_BOT_API_KEY"]  # bot API key from Zulip admin
 
-CHATSENTRY_URL    = os.environ.get("CHATSENTRY_URL", "http://chatsentry.platform.svc.cluster.local:8000")
-INFERENCE_URL     = os.environ.get("INFERENCE_URL",  "http://inference.platform.svc.cluster.local:8000")
+CHATSENTRY_URL = os.environ.get("CHATSENTRY_URL", "http://chatsentry.platform.svc.cluster.local:8000")
+INFERENCE_URL = os.environ.get("INFERENCE_URL", "http://inference.platform.svc.cluster.local:8000")
 
 # Moderation stream — flagged messages are posted here for human review
 MODERATION_STREAM = os.environ.get("MODERATION_STREAM", "moderation")
 
-DELETE_THRESHOLD  = float(os.environ.get("DELETE_THRESHOLD", "0.8"))
-FLAG_THRESHOLD    = float(os.environ.get("FLAG_THRESHOLD",   "0.5"))
+DELETE_THRESHOLD = float(os.environ.get("DELETE_THRESHOLD", "0.8"))
+FLAG_THRESHOLD = float(os.environ.get("FLAG_THRESHOLD", "0.5"))
 
 # ── Zulip client ───────────────────────────────────────────────────────────────
 
@@ -53,6 +53,7 @@ client = zulip.Client(
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
+
 
 def send_to_chatsentry(text: str, msg: dict) -> dict | None:
     """POST message to ChatSentry for cleaning + storage. Returns response JSON."""
@@ -130,11 +131,11 @@ def delete_message(message_id: int) -> None:
 
 def flag_for_review(event: dict, score: float) -> None:
     """Post a moderation alert to the #moderation stream."""
-    sender   = event.get("sender_full_name", "unknown")
-    stream   = event.get("display_recipient", "unknown")
-    topic    = event.get("subject", "unknown")
-    text     = event.get("content", "")
-    msg_id   = event.get("id")
+    sender = event.get("sender_full_name", "unknown")
+    stream = event.get("display_recipient", "unknown")
+    topic = event.get("subject", "unknown")
+    text = event.get("content", "")
+    msg_id = event.get("id")
 
     alert = (
         f"⚠️ **Flagged message** (score: {score:.2f})\n"
@@ -143,12 +144,14 @@ def flag_for_review(event: dict, score: float) -> None:
         f"**Message ID:** {msg_id}\n"
         f"**Content:** {text[:500]}"
     )
-    result = client.send_message({
-        "type": "stream",
-        "to": MODERATION_STREAM,
-        "topic": "Flagged Messages",
-        "content": alert,
-    })
+    result = client.send_message(
+        {
+            "type": "stream",
+            "to": MODERATION_STREAM,
+            "topic": "Flagged Messages",
+            "content": alert,
+        }
+    )
     if result["result"] != "success":
         log.error("Failed to post to moderation stream: %s", result)
     else:
@@ -156,6 +159,7 @@ def flag_for_review(event: dict, score: float) -> None:
 
 
 # ── Event handler ──────────────────────────────────────────────────────────────
+
 
 def handle_event(event: dict) -> None:
     """Called for every event received from Zulip."""
@@ -170,15 +174,15 @@ def handle_event(event: dict) -> None:
     if msg.get("display_recipient") == MODERATION_STREAM:
         return
 
-    text          = msg.get("content", "")
-    zulip_msg_id  = msg["id"]
+    text = msg.get("content", "")
+    zulip_msg_id = msg["id"]
     zulip_user_id = msg["sender_id"]
 
     log.info("Processing message %d from user %d", zulip_msg_id, zulip_user_id)
 
     # 1. Store in ChatSentry
     cs_response = send_to_chatsentry(text, msg)
-    message_id  = cs_response["message_id"] if cs_response else str(uuid.uuid4())
+    message_id = cs_response["message_id"] if cs_response else str(uuid.uuid4())
 
     # 2. Score
     score = get_score(message_id, msg)
@@ -200,6 +204,7 @@ def handle_event(event: dict) -> None:
 
 
 # ── Main loop ──────────────────────────────────────────────────────────────────
+
 
 def main() -> None:
     log.info("Zulip moderation bot starting")

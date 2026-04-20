@@ -26,9 +26,7 @@ elif torch.cuda.is_available():
 else:
     device = torch.device("cpu")
     # INT8 quantization: CPU-only optimization, applied before moving to device
-    model = torch.quantization.quantize_dynamic(
-        model, {torch.nn.Linear}, dtype=torch.qint8
-    )
+    model = torch.quantization.quantize_dynamic(model, {torch.nn.Linear}, dtype=torch.qint8)
 
 model.eval()
 model.to(device)
