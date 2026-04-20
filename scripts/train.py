@@ -1,9 +1,9 @@
 import argparse
 import os
+import re
 import subprocess
 import time
 from pathlib import Path
-import re
 
 import mlflow
 import mlflow.pytorch
