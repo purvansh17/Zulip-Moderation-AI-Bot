@@ -18,13 +18,9 @@ def stage_model_artifact() -> Path:
     stage_dir.mkdir(parents=True, exist_ok=True)
 
     minio = get_minio_client()
-    objects = list(
-        minio.list_objects(config.BUCKET_RAW, prefix=S3_MODEL_PREFIX, recursive=True)
-    )
+    objects = list(minio.list_objects(config.BUCKET_RAW, prefix=S3_MODEL_PREFIX, recursive=True))
     if not objects:
-        raise RuntimeError(
-            f"No model artifacts found at {config.BUCKET_RAW}/{S3_MODEL_PREFIX}"
-        )
+        raise RuntimeError(f"No model artifacts found at {config.BUCKET_RAW}/{S3_MODEL_PREFIX}")
 
     for obj in objects:
         rel_path = obj.object_name.replace(S3_MODEL_PREFIX, "")

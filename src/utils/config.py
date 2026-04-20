@@ -73,9 +73,7 @@ def _env_kwargs() -> dict:
         "GPU_SERVICE_URL": os.environ.get("GPU_SERVICE_URL", "http://localhost:8001"),
         "GPU_SERVICE_API_KEY": os.environ.get("GPU_SERVICE_API_KEY", ""),
         "GPU_SERVICE_TIMEOUT": int(os.environ.get("GPU_SERVICE_TIMEOUT", "120")),
-        "GPU_MODEL_STAGE_DIR": os.environ.get(
-            "GPU_MODEL_STAGE_DIR", "/tmp/qwen-model-stage"
-        ),
+        "GPU_MODEL_STAGE_DIR": os.environ.get("GPU_MODEL_STAGE_DIR", "/tmp/qwen-model-stage"),
     }
 
 

@@ -90,11 +90,7 @@ def apply_quality_gate(df: pd.DataFrame) -> pd.DataFrame:
         return cleaned
 
     cleaned["cleaned_text"] = (
-        cleaned["cleaned_text"]
-        .fillna("")
-        .astype(str)
-        .str.replace(r"\s+", " ", regex=True)
-        .str.strip()
+        cleaned["cleaned_text"].fillna("").astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
     )
     lengths = cleaned["cleaned_text"].str.len()
 
@@ -107,17 +103,12 @@ def apply_quality_gate(df: pd.DataFrame) -> pd.DataFrame:
 
     # Remove irrecoverably bad rows, then cap remaining outliers in-place.
     cleaned = cleaned[~(error_mask | short_mask)].copy()
-    cleaned["cleaned_text"] = cleaned["cleaned_text"].str[
-        : config.QUALITY_MAX_TEXT_LENGTH
-    ]
+    cleaned["cleaned_text"] = cleaned["cleaned_text"].str[: config.QUALITY_MAX_TEXT_LENGTH]
     cleaned = cleaned.reset_index(drop=True)
 
     removed = initial_count - len(cleaned)
     logger.info(
-        (
-            "Quality cleanup: removed %d rows (error=%d, short=%d), "
-            "truncated %d long rows"
-        ),
+        ("Quality cleanup: removed %d rows (error=%d, short=%d), truncated %d long rows"),
         removed,
         int(error_mask.sum()),
         int(short_mask.sum()),
@@ -138,18 +129,11 @@ def clean_training_texts(
     if cleaner is None:
         cleaner = TextCleaner()
 
-    cleaned = (
-        text_series.fillna("")
-        .astype(str)
-        .str.replace(r"\s+", " ", regex=True)
-        .str.strip()
-    )
+    cleaned = text_series.fillna("").astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
     needs_full_clean = cleaned.str.contains(FAST_PATH_FULL_CLEAN_PATTERN, na=False)
 
     if needs_full_clean.any():
-        cleaned.loc[needs_full_clean] = cleaned.loc[needs_full_clean].apply(
-            cleaner.clean
-        )
+        cleaned.loc[needs_full_clean] = cleaned.loc[needs_full_clean].apply(cleaner.clean)
 
     logger.info(
         "Batch cleaning fast path: %d/%d rows used full TextCleaner",
@@ -179,14 +163,9 @@ def validate_and_upload_data_docs(
 
 def bulk_load_initial_messages(df: pd.DataFrame) -> None:
     """Optionally mirror initial raw rows into PostgreSQL for later workflows."""
-    load_to_postgres = (
-        os.environ.get("INITIAL_LOAD_TO_POSTGRES", "false").lower() == "true"
-    )
+    load_to_postgres = os.environ.get("INITIAL_LOAD_TO_POSTGRES", "false").lower() == "true"
     if not load_to_postgres:
-        logger.info(
-            "Skipping PostgreSQL bulk load in initial mode; set "
-            "INITIAL_LOAD_TO_POSTGRES=true to enable it"
-        )
+        logger.info("Skipping PostgreSQL bulk load in initial mode; set INITIAL_LOAD_TO_POSTGRES=true to enable it")
         return
 
     # Ensure a default user exists for foreign key constraint

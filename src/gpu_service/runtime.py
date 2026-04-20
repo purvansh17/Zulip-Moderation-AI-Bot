@@ -115,9 +115,7 @@ def _generate_text(
             repetition_penalty=1.15,
             pad_token_id=_tokenizer.eos_token_id,
         )
-    return _tokenizer.decode(
-        output[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True
-    )
+    return _tokenizer.decode(output[0][inputs["input_ids"].shape[1] :], skip_special_tokens=True)
 
 
 def _build_training_rows(total_count: int) -> list[TrainingRow]:

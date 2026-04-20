@@ -149,9 +149,7 @@ if __name__ == "__main__":
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
     )
 
-    parser = argparse.ArgumentParser(
-        description="Generate synthetic data using the external GPU service"
-    )
+    parser = argparse.ArgumentParser(description="Generate synthetic data using the external GPU service")
     parser.add_argument(
         "--mode",
         choices=["training", "test"],
