@@ -1,5 +1,6 @@
 # general
 .DS_Store
+.env
 __pycache__/
 *.pyc
 *.pyo
@@ -45,3 +46,7 @@ infra/terraform/.terraform.lock.hcl
 infra/ansible/group_vars/all/vault.yml
 *.vault_pass
 .vault_pass
+.venv/
+combined_dataset.csv
+not_needed/
+.codex

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -6,7 +6,10 @@ from pydantic import BaseModel, Field
 class MessagePayload(BaseModel):
     text: str = Field(..., min_length=1, max_length=10000, description="Raw message text")
     user_id: str = Field(..., description="UUID of the sending user")
-    source: str = Field(default="real", description="Data source: real or synthetic_hf")
+    source: Literal["real", "synthetic"] = Field(
+        default="real",
+        description="Data source: real or synthetic",
+    )
 
 
 class MessageResponse(BaseModel):

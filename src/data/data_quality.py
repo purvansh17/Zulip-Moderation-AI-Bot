@@ -5,6 +5,7 @@ Per D-01 through D-05, QUALITY-01, QUALITY-02.
 """
 
 import logging
+import re
 from typing import Any
 
 import great_expectations as gx
@@ -97,6 +98,7 @@ def build_expectation_suite(
 def validate_training_data(
     df,
     thresholds: dict[str, Any] | None = None,
+    report_label: str = "Training Data",
 ) -> tuple[bool, dict[str, Any]]:
     """Validate training DataFrame against GE Expectation Suite (D-01 through D-05).
 
@@ -107,6 +109,7 @@ def validate_training_data(
     Args:
         df: DataFrame with columns: cleaned_text, is_suicide, is_toxicity, source.
         thresholds: Override default threshold values (optional).
+        report_label: Human-readable label rendered into the HTML report.
 
     Returns:
         Tuple of (success: bool, results: dict with statistics and Data Docs HTML).
@@ -156,7 +159,7 @@ def validate_training_data(
             len(result.results),
         )
 
-    data_docs_html = _generate_data_docs_html(result, suite)
+    data_docs_html = _generate_data_docs_html(result, suite, report_label=report_label)
 
     return success, {
         "statistics": statistics,
@@ -175,7 +178,11 @@ _EXPECTATION_LABELS = {
 }
 
 
-def _generate_data_docs_html(result, suite: ExpectationSuite) -> str:
+def _generate_data_docs_html(
+    result,
+    suite: ExpectationSuite,
+    report_label: str = "Training Data",
+) -> str:
     """Generate Data Docs HTML from validation result.
 
     Creates a simple HTML report showing pass/fail per expectation.
@@ -208,13 +215,13 @@ def _generate_data_docs_html(result, suite: ExpectationSuite) -> str:
 
         rows.append(f'<tr class="{status_class}"><td>{label}</td><td>{column}</td><td>{status}{detail}</td></tr>')
 
-    passed = result.statistics.get("successful_expectations", 0)
-    total = result.statistics.get("evaluated_expectations", 0)
-    status_str = "PASSED" if result.success else "FAILED"
+    successful = result.statistics.get("successful_expectations", 0)
+    evaluated = result.statistics.get("evaluated_expectations", 0)
+
     html = f"""<!DOCTYPE html>
 <html>
 <head>
-    <title>ChatSentry Data Quality Report</title>
+    <title>ChatSentry Data Quality Report — {report_label}</title>
     <style>
         body {{ font-family: sans-serif; margin: 20px; }}
         table {{ border-collapse: collapse; width: 100%; }}
@@ -228,8 +235,9 @@ def _generate_data_docs_html(result, suite: ExpectationSuite) -> str:
 <body>
     <h1>ChatSentry Data Quality Report</h1>
     <div class="summary">
-        <p><strong>Status:</strong> {status_str}</p>
-        <p><strong>Expectations:</strong> {passed}/{total} passed</p>
+        <p><strong>Dataset Stage:</strong> {report_label}</p>
+        <p><strong>Status:</strong> {"PASSED" if result.success else "FAILED"}</p>
+        <p><strong>Expectations:</strong> {successful}/{evaluated} passed</p>
     </div>
     <table>
         <tr><th>Expectation</th><th>Column</th><th>Status</th></tr>
@@ -240,13 +248,23 @@ def _generate_data_docs_html(result, suite: ExpectationSuite) -> str:
     return html
 
 
-# TODO (Rishabh): default bucket is hardcoded to "proj09_Data" — should use config.BUCKET_TRAINING instead.
-def upload_data_docs(html: str, bucket: str = "proj09_Data") -> str:
+def _normalize_report_name(report_name: str) -> str:
+    """Convert a report label into a filesystem- and URL-safe slug."""
+    slug = re.sub(r"[^a-z0-9]+", "-", report_name.lower()).strip("-")
+    return slug or "report"
+
+
+def upload_data_docs(
+    html: str,
+    bucket: str = "proj09_Data",
+    report_name: str | None = None,
+) -> str:
     """Upload Data Docs HTML to MinIO (D-04).
 
     Args:
         html: HTML string from validate_training_data().
         bucket: MinIO bucket name.
+        report_name: Optional stage label for a stable, human-readable filename.
 
     Returns:
         Object name in MinIO.
@@ -259,7 +277,11 @@ def upload_data_docs(html: str, bucket: str = "proj09_Data") -> str:
     client = get_minio_client()
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-    object_name = f"data-quality-report/report-{timestamp}.html"
+    if report_name:
+        slug = _normalize_report_name(report_name)
+        object_name = f"data-quality-report/{slug}-{timestamp}.html"
+    else:
+        object_name = f"data-quality-report/report-{timestamp}.html"
 
     html_bytes = html.encode("utf-8")
     client.put_object(
