@@ -215,9 +215,9 @@ def _generate_data_docs_html(
 
         rows.append(f'<tr class="{status_class}"><td>{label}</td><td>{column}</td><td>{status}{detail}</td></tr>')
 
-    passed = result.statistics.get("successful_expectations", 0)
-    total = result.statistics.get("evaluated_expectations", 0)
-    status_str = "PASSED" if result.success else "FAILED"
+    successful = result.statistics.get("successful_expectations", 0)
+    evaluated = result.statistics.get("evaluated_expectations", 0)
+
     html = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -237,7 +237,7 @@ def _generate_data_docs_html(
     <div class="summary">
         <p><strong>Dataset Stage:</strong> {report_label}</p>
         <p><strong>Status:</strong> {"PASSED" if result.success else "FAILED"}</p>
-        <p><strong>Expectations:</strong> {result.statistics.get("successful_expectations", 0)}/{result.statistics.get("evaluated_expectations", 0)} passed</p>
+        <p><strong>Expectations:</strong> {successful}/{evaluated} passed</p>
     </div>
     <table>
         <tr><th>Expectation</th><th>Column</th><th>Status</th></tr>
