@@ -15,6 +15,7 @@ import yaml
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
+
 from src.data import MultiTaskTextDataset, load_splits
 from src.metrics import compute_multitask_metrics, flatten_metrics, save_json
 from src.models import TfidfLogRegMultiOutput, TransformerMultiHeadModel
@@ -127,22 +128,29 @@ def load_config(path: str):
 def get_git_sha():
     env_sha = os.getenv("GIT_SHA")
     if env_sha:
-      return env_sha
+        return env_sha
 
     candidate_paths = [
-    Path.cwd(),
-    Path(__file__).resolve().parents[1],
-    Path("/home/cc/Zulip-Moderation-AI-Bot"),
+        Path.cwd(),
+        Path(__file__).resolve().parents[1],
+        Path("/home/cc/Zulip-Moderation-AI-Bot"),
     ]
     for path in candidate_paths:
         try:
-          print("Trying sha")
-          sha = subprocess.check_output(["git", "-C", str(path), "rev-parse", "HEAD"],stderr=subprocess.STDOUT,).decode().strip()
-          print(f"Resolved sha : {sha}")
-          return sha
+            print("Trying sha")
+            sha = (
+                subprocess.check_output(
+                    ["git", "-C", str(path), "rev-parse", "HEAD"],
+                    stderr=subprocess.STDOUT,
+                )
+                .decode()
+                .strip()
+            )
+            print(f"Resolved sha : {sha}")
+            return sha
         except Exception as e:
-          print(f"Git SHA lookup failed for {path}: {e}")
-          return "unknown"
+            print(f"Git SHA lookup failed for {path}: {e}")
+            return "unknown"
 
 
 def get_device():
@@ -345,7 +353,7 @@ def run_transformer(cfg):
         model.train()
         epoch_loss = 0.0
 
-        loop = tqdm(train_loader, desc=f"Epoch {epoch+1}")
+        loop = tqdm(train_loader, desc=f"Epoch {epoch + 1}")
         for batch in loop:
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
@@ -406,7 +414,6 @@ def main():
     full_cfg = load_config(args.config)
     cfg = resolve_run_config(full_cfg, args.run)
 
-
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI", cfg["mlflow"]["tracking_uri"])
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.set_experiment(cfg["experiment"]["name"])
@@ -418,7 +425,6 @@ def main():
         print("CWD:", Path.cwd())
         print("__file__:", Path(__file__).resolve())
         print("Repo guess:", Path(__file__).resolve().parents[1])
-
 
         for k, v in collect_env_info().items():
             mlflow.log_param(k, v)

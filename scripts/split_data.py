@@ -31,9 +31,7 @@ def main():
     df = df.dropna(subset=["text"]).reset_index(drop=True)
 
     # joint stratification label
-    df["stratify_label"] = (
-        df["is_suicide"].astype(str) + "_" + df["is_toxicity"].astype(str)
-    )
+    df["stratify_label"] = df["is_suicide"].astype(str) + "_" + df["is_toxicity"].astype(str)
 
     train_df, temp_df = train_test_split(
         df,

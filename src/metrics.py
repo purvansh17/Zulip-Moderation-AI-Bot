@@ -38,12 +38,8 @@ def compute_multitask_metrics(y_true, y_prob, thresholds):
     suicide_prob = y_prob[:, 0]
     toxicity_prob = y_prob[:, 1]
 
-    suicide_metrics = compute_binary_metrics(
-        suicide_true, suicide_prob, threshold=thresholds["suicide"]
-    )
-    toxicity_metrics = compute_binary_metrics(
-        toxicity_true, toxicity_prob, threshold=thresholds["toxicity"]
-    )
+    suicide_metrics = compute_binary_metrics(suicide_true, suicide_prob, threshold=thresholds["suicide"])
+    toxicity_metrics = compute_binary_metrics(toxicity_true, toxicity_prob, threshold=thresholds["toxicity"])
 
     avg_f1 = (suicide_metrics["f1"] + toxicity_metrics["f1"]) / 2.0
 
