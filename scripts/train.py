@@ -22,6 +22,55 @@ from src.models import TfidfLogRegMultiOutput, TransformerMultiHeadModel
 
 mp.set_sharing_strategy("file_system")
 
+"""def upload_to_object_store(local_path: str, remote_path: str):
+    subprocess.run(
+        ["rclone", "copy", local_path, remote_path],
+        check=True,
+    )"""
+
+def passes_quality_gates(test_metrics: dict):
+    reasons = []
+
+    suicide = test_metrics["suicide"]
+    toxicity = test_metrics["toxicity"]
+
+    # Self-harm / suicide: prioritize recall
+    if suicide["recall"] < 0.85:
+        reasons.append(f"suicide recall too low: {suicide['recall']:.4f} < 0.85")
+
+    if suicide["f1"] < 0.75:
+        reasons.append(f"suicide f1 too low: {suicide['f1']:.4f} < 0.75")
+    
+    if suicide["precision"] < 0.75:
+       reasons.append(f"suicide precision too low: {suicide['precision']:.4f} < 0.75")
+
+    # Toxicity: balanced performance
+    if toxicity["f1"] < 0.80:
+        reasons.append(f"toxicity f1 too low: {toxicity['f1']:.4f} < 0.80")
+
+    if toxicity["precision"] < 0.75:
+        reasons.append(f"toxicity precision too low: {toxicity['precision']:.4f} < 0.75")
+
+    if toxicity["recall"] < 0.75:
+        reasons.append(f"toxicity recall too low: {toxicity['recall']:.4f} < 0.75")
+
+    passed = len(reasons) == 0
+    return passed, reasons
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -311,6 +360,14 @@ def run_transformer(cfg):
         encoder_name=cfg["model"]["encoder_name"],
         dropout=cfg["model"].get("dropout", 0.1),
     ).to(device)
+    resume_ckpt = os.getenv("RESUME_FROM_CHECKPOINT") or cfg["training"].get("resume_from_checkpoint")
+    
+    print(f"RESUME_FROM_CHECKPOINT resolved to: {resume_ckpt}")
+    if resume_ckpt and Path(resume_ckpt).exists():
+      print(f"Loading checkpoint from {resume_ckpt}")
+      model.load_state_dict(torch.load(resume_ckpt, map_location=device))
+    else:
+      print("No checkpoint loaded. Training from scratch.")
 
     train_y = bundle.train_df[["is_suicide", "is_toxicity"]].values
     pos_counts = train_y.sum(axis=0)
@@ -443,13 +500,22 @@ def main():
 
         if cfg["model"]["type"] == "tfidf_logreg":
             model, train_time, thresholds, val_metrics, test_metrics = run_tfidf_baseline(cfg)
-            mlflow.sklearn.log_model(model.model, artifact_path="model")
+            #mlflow.sklearn.log_model(model.model, artifact_path="model")
         else:
             model, train_time, thresholds, val_metrics, test_metrics, best_model_path = run_transformer(cfg)
-            try:
-              mlflow.pytorch.log_model(model, artifact_path="model")
-            except Exception as e:
-              print(e)
+            
+
+        passed_gate, gate_reasons = passes_quality_gates(test_metrics)
+        mlflow.log_param("quality_gate_passed", passed_gate)
+        mlflow.set_tag("quality_gate_passed", str(passed_gate).lower())
+        
+        if gate_reasons:
+          mlflow.set_tag("quality_gate_reasons", " | ".join(gate_reasons))
+
+
+
+
+
             #mlflow.log_artifact(str(best_model_path))
             #print(f"Model saved locally at: {best_model_path}")
 
@@ -469,15 +535,33 @@ def main():
         Path(cfg["output"]["dir"]).mkdir(parents=True, exist_ok=True)
         thresholds_path = Path(cfg["output"]["dir"]) / "thresholds.json"
         metrics_path = Path(cfg["output"]["dir"]) / "final_metrics.json"
+        quality_gate_path = Path(cfg["output"]["dir"]) / "quality_gate.json"
+
         save_json(thresholds, thresholds_path)
         save_json({"val": val_metrics, "test": test_metrics}, metrics_path)
+        save_json({"passed": passed_gate, "reasons": gate_reasons}, quality_gate_path)
         mlflow.log_artifact(str(thresholds_path))
         mlflow.log_artifact(str(metrics_path))
-
+        mlflow.log_artifact(str(quality_gate_path))
         print("Thresholds:", thresholds)
         print("Validation metrics:", val_metrics)
         print("Test metrics:", test_metrics)
-
-
+        
+        if passed_gate:
+          print("Model passed quality gates. Logging model artifact.")
+          if cfg["model"]["type"] == "tfidf_logreg":
+            mlflow.sklearn.log_model(model.model, artifact_path="model")
+          else:
+            try:
+              mlflow.pytorch.log_model(model, artifact_path="model")
+            except Exception as e:
+              print(e)
+            approved_remote = "proj09_object_store:"
+            print(f"Uploading approved checkpoint to {approved_remote}")
+            #upload_to_object_store(str(best_model_path), approved_remote)
+        else:
+          print("Model failed quality gates. Skipping model logging.")
+          for reason in gate_reasons:
+            print(" -", reason)
 if __name__ == "__main__":
     main()
