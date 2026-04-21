@@ -39,9 +39,6 @@ INFERENCE_URL = os.environ.get("INFERENCE_URL", "http://inference.platform.svc.c
 # Moderation stream — flagged messages are posted here for human review
 MODERATION_STREAM = os.environ.get("MODERATION_STREAM", "moderation")
 
-DELETE_THRESHOLD = float(os.environ.get("DELETE_THRESHOLD", "0.8"))
-FLAG_THRESHOLD = float(os.environ.get("FLAG_THRESHOLD", "0.5"))
-
 # ── Zulip client ───────────────────────────────────────────────────────────────
 
 client = zulip.Client(
@@ -76,9 +73,9 @@ def send_to_chatsentry(text: str, msg: dict) -> dict | None:
         return None
 
 
-def get_score(message_id: str, msg: dict) -> float:
-    """POST to inference /moderate, return max(toxicity, self_harm) score 0-1.
-    Falls back to 0 on error so the message is not incorrectly actioned."""
+def get_moderation(message_id: str, msg: dict) -> dict | None:
+    """POST to inference /moderate, return full response dict.
+    Returns None on error so the message is not incorrectly actioned."""
     try:
         resp = requests.post(
             f"{INFERENCE_URL}/moderate",
@@ -98,11 +95,10 @@ def get_score(message_id: str, msg: dict) -> float:
             timeout=15,
         )
         resp.raise_for_status()
-        scores = resp.json()["scores"]
-        return max(scores["toxicity"], scores["self_harm"])
+        return resp.json()
     except Exception as e:
         log.error("Inference /moderate failed: %s", e)
-        return 0.0
+        return None
 
 
 def record_moderation(message_id: str, reason: str, score: float) -> None:
@@ -185,22 +181,31 @@ def handle_event(event: dict) -> None:
     message_id = cs_response["message_id"] if cs_response else str(uuid.uuid4())
 
     # 2. Score
-    score = get_score(message_id, msg)
-    log.info("Message %d scored %.2f", zulip_msg_id, score)
+    result = get_moderation(message_id, msg)
+    if result is None:
+        log.warning("Inference unavailable for message %d — skipping", zulip_msg_id)
+        return
 
-    # 3. Act
-    if score >= DELETE_THRESHOLD:
-        log.info("Score %.2f >= DELETE_THRESHOLD %.2f — deleting", score, DELETE_THRESHOLD)
+    action = result["action"]
+    toxicity = result["scores"]["toxicity"]
+    self_harm = result["scores"]["self_harm"]
+    log.info("Message %d → action=%s toxicity=%.2f self_harm=%.2f", zulip_msg_id, action, toxicity, self_harm)
+
+    # 3. Act according to the tiered decision matrix from the proposal:
+    #   HIDE_AND_STRIKE  → delete message, record strike
+    #   WARN_AND_OBSCURE → flag for admin review, warn user
+    #   ALERT_ADMIN      → flag for admin (do NOT delete — isolating self-harm users is harmful)
+    #   ALLOW            → no action
+    if action == "HIDE_AND_STRIKE":
         delete_message(zulip_msg_id)
-        record_moderation(message_id, "auto-deleted", score)
+        record_moderation(message_id, "auto-deleted", toxicity)
 
-    elif score >= FLAG_THRESHOLD:
-        log.info("Score %.2f >= FLAG_THRESHOLD %.2f — flagging", score, FLAG_THRESHOLD)
-        flag_for_review(msg, score)
-        record_moderation(message_id, "flagged-for-review", score)
+    elif action in ("WARN_AND_OBSCURE", "ALERT_ADMIN"):
+        flag_for_review(msg, max(toxicity, self_harm))
+        record_moderation(message_id, action.lower(), max(toxicity, self_harm))
 
     else:
-        log.debug("Score %.2f below thresholds — no action", score)
+        log.debug("Action ALLOW — no action taken")
 
 
 # ── Main loop ──────────────────────────────────────────────────────────────────
@@ -209,7 +214,7 @@ def handle_event(event: dict) -> None:
 def main() -> None:
     log.info("Zulip moderation bot starting")
     log.info("Site: %s | Bot: %s", ZULIP_SITE, ZULIP_EMAIL)
-    log.info("Thresholds — delete: %.2f | flag: %.2f", DELETE_THRESHOLD, FLAG_THRESHOLD)
+    log.info("Moderation stream: %s", MODERATION_STREAM)
 
     # Ensure moderation stream exists
     client.add_subscriptions(streams=[{"name": MODERATION_STREAM}])
