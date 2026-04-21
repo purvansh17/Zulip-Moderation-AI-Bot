@@ -44,6 +44,8 @@ vault_zulip_bot_api_key: "CHANGE_ME_bot_api_key"
 vault_chameleon_ec2_access: "CHANGE_ME_ec2_access_key"
 vault_chameleon_ec2_secret: "CHANGE_ME_ec2_secret_key"
 
+
+
 # Grafana admin password
 vault_grafana_admin_password: "CHANGE_ME_grafana_password"
 
@@ -53,6 +55,7 @@ vault_grafana_admin_password: "CHANGE_ME_grafana_password"
 #   Authorized redirect URI: https://zulip.<FLOATING_IP>.nip.io/complete/google/
 vault_google_oauth2_key: "CHANGE_ME_google_client_id"
 vault_google_oauth2_secret: "CHANGE_ME_google_client_secret"
+
 
 # GPU service API key — used by data pipeline to authenticate synthetic data requests.
 # Set to empty string "" to disable auth (dev only).
