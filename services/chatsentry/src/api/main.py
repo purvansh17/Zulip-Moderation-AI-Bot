@@ -35,6 +35,11 @@ async def text_cleaning_middleware(request, call_next):
     body: dict[str, Any] = {}
     try:
         body_bytes = await request.body()
+
+        async def receive() -> dict:
+            return {"type": "http.request", "body": body_bytes, "more_body": False}
+
+        request._receive = receive  # type: ignore[attr-defined]
         body = json.loads(body_bytes)
         cleaned = dict(body)
 

@@ -220,6 +220,18 @@
       no_log: true
       changed_when: true
 
+    # GPU service API key (namespace platform)
+    - name: Create gpu-service-credentials secret (namespace platform)
+      ansible.builtin.shell: |
+        kubectl create secret generic gpu-service-credentials \
+          --namespace platform \
+          --from-literal=GPU_SERVICE_API_KEY="{{ vault_gpu_service_api_key }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      no_log: true
+      changed_when: true
+
     # ── Apply manifests in dependency order ──────────────────────────────────
 
     - name: Apply PostgreSQL (shared DB for Zulip + MLflow)
@@ -273,6 +285,18 @@
 
     - name: Apply Inference Service
       ansible.builtin.shell: kubectl apply -f {{ manifest_dest }}/platform/inference.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      changed_when: true
+
+    - name: Apply GE Viewer
+      ansible.builtin.shell: kubectl apply -f {{ manifest_dest }}/platform/ge-viewer.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      changed_when: true
+
+    - name: Apply GPU Service
+      ansible.builtin.shell: kubectl apply -f {{ manifest_dest }}/platform/gpu-service.yaml
       environment:
         KUBECONFIG: "{{ kubeconfig }}"
       changed_when: true
@@ -344,13 +368,17 @@
         KUBECONFIG: "{{ kubeconfig }}"
       changed_when: true
 
-    - name: Apply training job ConfigMap and PVC (Job itself is triggered manually)
-      ansible.builtin.shell: |
-        kubectl apply -f {{ manifest_dest }}/platform/training-job.yaml \
-          --selector='!batch.kubernetes.io/job-name'
-      environment:
-        KUBECONFIG: "{{ kubeconfig }}"
-      changed_when: true
+    # Training job is applied manually — skipped here to avoid immutability errors
+    # on existing clusters. To deploy:
+    #   kubectl delete job zulip-moderation-training -n platform --ignore-not-found
+    #   kubectl apply -f ~/k8s/platform/training-job.yaml
+    # - name: Apply training job ConfigMap and PVC (Job itself is triggered manually)
+    #   ansible.builtin.shell: |
+    #     kubectl apply -f {{ manifest_dest }}/platform/training-job.yaml \
+    #       --selector='!batch.kubernetes.io/job-name'
+    #   environment:
+    #     KUBECONFIG: "{{ kubeconfig }}"
+    #   changed_when: true
 
     # ── Health checks ────────────────────────────────────────────────────────
 
