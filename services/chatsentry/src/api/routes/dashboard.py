@@ -26,7 +26,7 @@ class LabelRequest(BaseModel):
 
 @router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
 async def dashboard(request: Request, page: int = Query(1, ge=1)):
-    """Render the labeling dashboard with unlabeled live messages."""
+    """Render the labeling dashboard with live messages awaiting human labels."""
     limit = 20
     offset = (page - 1) * limit
 
@@ -39,7 +39,10 @@ async def dashboard(request: Request, page: int = Query(1, ge=1)):
                 FROM messages m
                 WHERE m.source = 'real'
                   AND NOT EXISTS (
-                    SELECT 1 FROM moderation mod WHERE mod.message_id = m.id
+                    SELECT 1
+                    FROM moderation mod
+                    WHERE mod.message_id = m.id
+                      AND mod.action = 'labeled'
                   )
                 ORDER BY m.created_at DESC
                 LIMIT %s OFFSET %s

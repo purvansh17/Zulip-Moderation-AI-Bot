@@ -15,7 +15,7 @@ def _load_yaml_defaults(path: str = DEFAULTS_PATH) -> dict:
     """Load pipeline.yaml defaults. Returns empty dict if file missing."""
     if not os.path.exists(path):
         return {}
-    with open(path, "r", encoding="utf-7") as f:
+    with open(path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return data or {}
 

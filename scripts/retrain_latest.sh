@@ -80,7 +80,7 @@ fi
 
 echo "== Building Docker image =="
 cd "$REPO_ROOT"
-sudo docker build -t "$IMAGE_NAME" .
+sudo docker build -t "$IMAGE_NAME" -f "$REPO_ROOT/Dockerfile.training" "$REPO_ROOT"
 
 echo "== Running training =="
 sudo docker run --rm -it \
@@ -93,7 +93,7 @@ sudo docker run --rm -it \
   -e MLFLOW_TRACKING_URI="$MLFLOW_URI" \
   -e RESUME_FROM_CHECKPOINT="/workspace/checkpoints/best_model.pt" \
   "$IMAGE_NAME" \
-  python -u scripts/train.py --config configs/experiments.yaml --run "$RUN_NAME"
+  python -u scripts/train.py --config config/experiments.yaml --run "$RUN_NAME"
 
 echo "== Done =="
 echo "== Backing up MLflow runs and models =="
