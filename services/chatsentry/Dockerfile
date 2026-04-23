@@ -33,8 +33,9 @@ RUN pip install --no-cache-dir \
     emoji>=2.15.0 \
     markdownify>=1.2.2 \
     jinja2>=3.0.0 \
-    prometheus-fastapi-instrumentator>=6.0.0 \
-    prometheus-client>=0.20.0
+    "prometheus-fastapi-instrumentator>=6.0.0,<7.0.0" \
+    prometheus-client>=0.20.0 \
+    kubernetes>=29.0.0
 
 COPY src/ ./src/
 COPY config/ ./config/
