@@ -133,6 +133,7 @@ Key values to fill in:
 | `vault_zulip_bot_api_key` | Fill in after Phase 4.1 (Zulip bot creation) |
 | `vault_google_oauth2_key` | Google OAuth Client ID — see Phase 4.2 |
 | `vault_google_oauth2_secret` | Google OAuth Client Secret — see Phase 4.2 |
+| `vault_grafana_admin_password` | Choose a strong password |
 
 **Note:** `vault_zulip_bot_email` and `vault_zulip_bot_api_key` are obtained from the Zulip UI after the realm is created. Leave them as placeholders for now and fill them in before running `post_k8s.yml`.
 
@@ -264,6 +265,8 @@ This playbook:
 | RabbitMQ | `http://rabbitmq.<IP>.nip.io` | |
 | Adminer | `http://adminer.<IP>.nip.io` | Postgres UI |
 | ChatSentry | `http://chatsentry.<IP>.nip.io` | |
+| Prometheus | `http://prometheus.<IP>.nip.io` | |
+| Grafana | `http://grafana.<IP>.nip.io` | user: `admin` / password: `vault_grafana_admin_password` |
 
 **Adminer login:**
 - Server: `postgres.zulip.svc.cluster.local`
@@ -299,6 +302,22 @@ Verify messages are being stored in ChatSentry:
 kubectl exec -n zulip deploy/postgres -- psql -U zulip -d chatsentry \
   -c "SELECT u.email, m.text, m.created_at FROM messages m JOIN users u ON m.user_id = u.id ORDER BY m.created_at DESC LIMIT 5;"
 ```
+
+Verify monitoring stack:
+```bash
+kubectl get pods -n platform | grep -E 'prometheus|grafana|cadvisor'
+```
+
+All three should be `Running`. Then open Grafana at `http://grafana.<IP>.nip.io` and:
+1. Log in with `admin` / `vault_grafana_admin_password`
+2. Go to **Dashboards → Import** → enter ID `19908` (cAdvisor — container resource usage)
+3. Select the Prometheus datasource and click **Import**
+
+The inference and ChatSentry services expose metrics at `/metrics`. Prometheus scrapes them every 15s. Available custom metrics:
+- `inference_toxicity_score` — histogram of toxicity scores
+- `inference_self_harm_score` — histogram of self-harm scores
+- `inference_action_total` — counter of moderation actions (ALLOW / FLAG / DELETE) by label
+- `inference_latency_ms` — model inference latency histogram
 
 ---
 

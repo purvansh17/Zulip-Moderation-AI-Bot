@@ -5,6 +5,7 @@ import uuid
 from typing import Any
 
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from src.data.text_cleaner import TextCleaner
 from src.utils.config import config
@@ -21,6 +22,7 @@ _minio_buffer: list[dict[str, Any]] = []
 _MINIO_BATCH_SIZE = 10_000
 
 app = FastAPI(title="ChatSentry API", version="0.1.0")
+Instrumentator().instrument(app).expose(app)
 
 
 @app.middleware("http")
@@ -88,7 +90,7 @@ def _persist_message(cleaned_body: dict[str, Any]) -> None:
     raw_text = cleaned_body["raw_text"]
     cleaned_text = cleaned_body["cleaned_text"]
     source = cleaned_body.get("source", "real")
-    if source not in ("real", "synthetic_hf"):
+    if source not in ("real", "synthetic"):
         source = "real"
 
     conn = get_db_connection()

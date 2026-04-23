@@ -208,6 +208,18 @@
       no_log: true
       changed_when: true
 
+    # grafana admin credentials (namespace platform)
+    - name: Create grafana-credentials secret (namespace platform)
+      ansible.builtin.shell: |
+        kubectl create secret generic grafana-credentials \
+          --namespace platform \
+          --from-literal=GRAFANA_ADMIN_PASSWORD="{{ vault_grafana_admin_password }}" \
+          --dry-run=client -o yaml | kubectl apply -f -
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      no_log: true
+      changed_when: true
+
     # ── Apply manifests in dependency order ──────────────────────────────────
 
     - name: Apply PostgreSQL (shared DB for Zulip + MLflow)
@@ -261,6 +273,30 @@
 
     - name: Apply Inference Service
       ansible.builtin.shell: kubectl apply -f {{ manifest_dest }}/platform/inference.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      changed_when: true
+
+    - name: Apply Prometheus
+      ansible.builtin.shell: kubectl apply -f {{ manifest_dest }}/platform/prometheus.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      changed_when: true
+
+    - name: Apply Grafana
+      ansible.builtin.shell: kubectl apply -f {{ manifest_dest }}/platform/grafana.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      changed_when: true
+
+    - name: Apply cAdvisor
+      ansible.builtin.shell: kubectl apply -f {{ manifest_dest }}/platform/cadvisor.yaml
+      environment:
+        KUBECONFIG: "{{ kubeconfig }}"
+      changed_when: true
+
+    - name: Apply GE Viewer
+      ansible.builtin.shell: kubectl apply -f {{ manifest_dest }}/platform/ge-viewer.yaml
       environment:
         KUBECONFIG: "{{ kubeconfig }}"
       changed_when: true
@@ -390,3 +426,5 @@
           - "RabbitMQ:   http://rabbitmq.{{ ansible_host }}.nip.io"
           - "Adminer:    http://adminer.{{ ansible_host }}.nip.io  (postgres UI — server: postgres.zulip.svc.cluster.local)"
           - "ChatSentry: http://chatsentry.{{ ansible_host }}.nip.io"
+          - "Prometheus: http://prometheus.{{ ansible_host }}.nip.io"
+          - "Grafana:    http://grafana.{{ ansible_host }}.nip.io  (user: admin / password: vault_grafana_admin_password)"
