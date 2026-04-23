@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import FastAPI
 
 from src.data.text_cleaner import TextCleaner
+from src.data.training_snapshot_trigger import queue_training_snapshot
 from src.utils.config import config
 from src.utils.db import get_db_connection
 from src.utils.minio_client import get_minio_client
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 # Shared MinIO buffer — accessed by middleware and flush endpoint
 _minio_buffer: list[dict[str, Any]] = []
-_MINIO_BATCH_SIZE = 10_000
+_MINIO_BATCH_SIZE = config.MINIO_BATCH_UPLOAD_SIZE
 
 app = FastAPI(title="ChatSentry API", version="0.1.0")
 
@@ -208,6 +209,16 @@ def _flush_to_minio() -> None:
             object_name,
         )
         _minio_buffer.clear()
+        try:
+            queue_training_snapshot(
+                "incremental",
+                reason=f"cleaned MinIO flush uploaded {object_name}",
+            )
+        except Exception:
+            logger.exception(
+                "Failed to queue incremental training snapshot after MinIO flush %s",
+                object_name,
+            )
     except Exception:
         logger.exception("Failed to flush cleaned data to MinIO")
 

@@ -4,7 +4,7 @@
 
 {% block content %}
 <h1>Data Labeling Dashboard</h1>
-<p>Showing unlabeled live messages (source='real'). Check the boxes and click Save to label.</p>
+<p>Showing live real messages that still need a human label. Check the boxes and click Save to label.</p>
 
 <div id="toast" style="display:none; padding:10px 20px; margin:10px 0; border-radius:4px; font-weight:bold;"></div>
 
@@ -88,6 +88,6 @@ async function saveLabel(messageId) {
 }
 </script>
 {% else %}
-<p>No unlabeled messages found. All live messages have been labeled!</p>
+<p>No unlabeled human-review messages found. All live messages have already been labeled.</p>
 {% endif %}
 {% endblock %}

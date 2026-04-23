@@ -23,10 +23,13 @@ spec:
               until nc -z postgres.zulip.svc.cluster.local 5432; do
                 echo "Waiting for postgres..."; sleep 3
               done
+      serviceAccountName: chatsentry
       containers:
         - name: chatsentry
-          image: kichanitish/chatsentry-api:latest
-          imagePullPolicy: Always
+          # Built locally on the app node from services/chatsentry/Dockerfile and
+          # imported into k3s before applying this manifest.
+          image: docker.io/library/chatsentry-api:vm-local
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000
           env:
@@ -40,6 +43,13 @@ spec:
               value: "chi.tacc.chameleoncloud.org:7480"
             - name: S3_SECURE
               value: "true"
+            - name: GPU_SERVICE_URL
+              value: "http://gpu-service.platform.svc.cluster.local:8001"
+            - name: GPU_SERVICE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: gpu-service-credentials
+                  key: GPU_SERVICE_API_KEY
             - name: MINIO_ACCESS_KEY
               valueFrom:
                 secretKeyRef:

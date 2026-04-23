@@ -32,6 +32,9 @@ mlruns/
 
 # dev
 .ruff_cache/
+.pytest_cache/
+.bg-shell/
+.claude/
 
 # data
 docker/.env
@@ -50,3 +53,13 @@ infra/ansible/group_vars/all/vault.yml
 combined_dataset.csv
 not_needed/
 .codex
+
+# local workspace-only files
+AGENTS.md
+CHAMELEON_CHI_TACC_GUIDE.md
+commands.md
+demo.csv
+id_rsa_chameleon_chatsentry
+proj09.md
+Chameleon_deploy.ipynb
+test.md

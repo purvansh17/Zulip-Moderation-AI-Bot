@@ -23,6 +23,7 @@ from typing import Optional
 import requests
 
 from src.data.prompts import LabelType
+from src.data.training_snapshot_trigger import run_training_snapshot
 from src.gpu_service.models import TestResponse, TrainingResponse, TrainingRow
 from src.utils.config import config
 from src.utils.minio_client import get_minio_client
@@ -100,6 +101,11 @@ def generate_training_data(
             counts["toxic"] += 1
         else:
             counts["benign"] += 1
+
+    run_training_snapshot(
+        "initial",
+        reason=f"synthetic training data upload to {bucket}/{object_name}",
+    )
     return counts
 
 

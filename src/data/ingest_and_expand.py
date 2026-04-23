@@ -13,6 +13,7 @@ import sys
 
 import pandas as pd
 
+from src.data.training_snapshot_trigger import run_training_snapshot
 from src.utils.config import config
 from src.utils.minio_client import get_minio_client
 
@@ -72,6 +73,11 @@ def ingest_csv(csv_path: str = CSV_PATH, bucket: str = config.BUCKET_RAW) -> int
         del csv_bytes
 
     logger.info("Ingestion complete: %d chunks uploaded to %s", chunk_count, bucket)
+    if chunk_count > 0:
+        run_training_snapshot(
+            "initial",
+            reason=f"raw CSV ingestion uploaded {chunk_count} chunks from {os.path.basename(csv_path)}",
+        )
     return chunk_count
 
 

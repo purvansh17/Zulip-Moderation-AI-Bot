@@ -185,9 +185,7 @@ def run_drift_check(df: pd.DataFrame, pre_gate_count: int, version: str) -> bool
     baseline = load_baseline_stats(config.BUCKET_TRAINING)
 
     if baseline is None:
-        logger.info(
-            "No baseline found — saving current batch as baseline (version %s)", version
-        )
+        logger.info("No baseline found — saving current batch as baseline (version %s)", version)
         save_baseline_stats(batch_stats, version, config.BUCKET_TRAINING)
         return True
 
@@ -308,9 +306,7 @@ def stratified_split(
     df = df.copy()
 
     # Create combined stratification label (4 classes, D-13)
-    df["label_combo"] = (
-        df["is_suicide"].astype(str) + "_" + df["is_toxicity"].astype(str)
-    )
+    df["label_combo"] = df["is_suicide"].astype(str) + "_" + df["is_toxicity"].astype(str)
 
     # Filter empty classes (DATA_ISSUES.md Issue 2: 1_1 has 0 rows)
     label_counts = df["label_combo"].value_counts()
@@ -330,8 +326,7 @@ def stratified_split(
     # Step 2: split 30% evenly into val (15%) and test (15%)
     val_df, test_df = train_test_split(
         temp_df,
-        test_size=config.TEST_SPLIT_RATIO
-        / (config.VAL_SPLIT_RATIO + config.TEST_SPLIT_RATIO),  # 0.50 for 15/15
+        test_size=config.TEST_SPLIT_RATIO / (config.VAL_SPLIT_RATIO + config.TEST_SPLIT_RATIO),  # 0.50 for 15/15
         stratify=temp_df["label_combo"],
         random_state=random_state,
     )
@@ -365,6 +360,7 @@ def upload_snapshot(
     train_df: pd.DataFrame,
     val_df: pd.DataFrame,
     test_df: pd.DataFrame,
+    version: str | None = None,
 ) -> str:
     """Upload versioned training data snapshot to MinIO (BATCH-03, D-09 through D-11).
 
@@ -378,7 +374,8 @@ def upload_snapshot(
     Returns:
         Version string used for the snapshot folder.
     """
-    version = generate_version()
+    if version is None:
+        version = generate_version()
 
     splits = {"train": train_df, "val": val_df, "test": test_df}
     for split_name, split_df in splits.items():
@@ -403,7 +400,7 @@ def upload_snapshot(
     return version
 
 
-def compile_initial() -> None:
+def compile_initial() -> str | None:
     """Initial mode: read CSV from MinIO, clean, load to PostgreSQL.
 
     Steps:
@@ -443,6 +440,10 @@ def compile_initial() -> None:
             response.close()
             response.release_conn()
 
+    if not chunks:
+        logger.warning("No CSV chunks found in raw S3 prefixes; skipping initial snapshot")
+        return None
+
     df = pd.concat(chunks, ignore_index=True)
     logger.info("Loaded %d rows from MinIO CSV chunks", len(df))
 
@@ -460,7 +461,7 @@ def compile_initial() -> None:
     logger.info("Pre-clean GE validation success=%s", pre_clean_success)
 
     # Quality gate: filter data issues before training bucket (DATA_ISSUES.md Issues 4, 5)
-    pre_gate_count = len(df)                          # capture BEFORE gate (D-03)
+    pre_gate_count = len(df)  # capture BEFORE gate (D-03)
     df = apply_quality_gate(df)
 
     post_clean_success, _ = validate_and_upload_data_docs(df, "after-cleaning")
@@ -475,11 +476,19 @@ def compile_initial() -> None:
 
     # Upload versioned snapshot — reuse same version string
     client = get_minio_client()
-    upload_snapshot(client, config.BUCKET_TRAINING, train_df, val_df, test_df)
+    upload_snapshot(
+        client,
+        config.BUCKET_TRAINING,
+        train_df,
+        val_df,
+        test_df,
+        version=version,
+    )
     logger.info("Initial compilation complete: version %s", version)
+    return version
 
 
-def compile_incremental() -> None:
+def compile_incremental() -> str | None:
     """Incremental mode: query PostgreSQL, compile snapshot (BATCH-01, D-03, D-18).
 
     Steps:
@@ -500,7 +509,7 @@ def compile_incremental() -> None:
 
     if df.empty:
         logger.warning("No new moderated messages found — skipping snapshot")
-        return
+        return None
 
     # Temporal leakage filter (redundant with SQL WHERE but defense-in-depth)
     df = filter_temporal_leakage(df)
@@ -528,7 +537,7 @@ def compile_incremental() -> None:
     logger.info("Pre-clean GE validation success=%s", pre_clean_success)
 
     # Quality gate: filter data issues before training bucket (DATA_ISSUES.md Issues 4, 5)
-    pre_gate_count = len(df)                          # capture BEFORE gate (D-03)
+    pre_gate_count = len(df)  # capture BEFORE gate (D-03)
     df = apply_quality_gate(df)
 
     post_clean_success, _ = validate_and_upload_data_docs(df, "after-cleaning")
@@ -543,8 +552,16 @@ def compile_incremental() -> None:
 
     # Upload versioned snapshot
     client = get_minio_client()
-    upload_snapshot(client, config.BUCKET_TRAINING, train_df, val_df, test_df)
+    upload_snapshot(
+        client,
+        config.BUCKET_TRAINING,
+        train_df,
+        val_df,
+        test_df,
+        version=version,
+    )
     logger.info("Incremental compilation complete: version %s", version)
+    return version
 
 
 if __name__ == "__main__":
@@ -565,12 +582,8 @@ if __name__ == "__main__":
         conn.close()
 
     if row_count == 0:
-        logger.info(
-            "PostgreSQL messages table is empty — running initial load from MinIO CSV"
-        )
+        logger.info("PostgreSQL messages table is empty — running initial load from MinIO CSV")
         compile_initial()
     else:
-        logger.info(
-            "PostgreSQL has %d messages — running incremental compilation", row_count
-        )
+        logger.info("PostgreSQL has %d messages — running incremental compilation", row_count)
         compile_incremental()
