@@ -31,6 +31,10 @@ spec:
         - key: dedicated
           value: gpu
           effect: NoSchedule
+      # Use host network so external DNS (chi.tacc.chameleoncloud.org) resolves
+      # CoreDNS at 10.43.0.10 is not reachable from the GPU bare-metal node
+      hostNetwork: true
+      dnsPolicy: Default
 
       containers:
         - name: gpu-service
@@ -117,8 +121,17 @@ metadata:
   name: gpu-service
   namespace: platform
 spec:
-  selector:
-    app: gpu-service
   ports:
     - port: 8001
       targetPort: 8001
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: gpu-service
+  namespace: platform
+subsets:
+  - addresses:
+      - ip: "129.114.108.168"
+    ports:
+      - port: 8001

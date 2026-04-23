@@ -13,7 +13,6 @@ data:
         isDefault: true
         editable: false
 ---
-<<<<<<< HEAD
 apiVersion: v1
 kind: ConfigMap
 metadata:
