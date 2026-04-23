@@ -58,3 +58,4 @@ vault_google_oauth2_secret: "CHANGE_ME_google_client_secret"
 # Set to empty string "" to disable auth (dev only).
 # Generate with: python3 -c "import secrets; print(secrets.token_hex(32))"
 vault_gpu_service_api_key: "CHANGE_ME_gpu_service_api_key"
+

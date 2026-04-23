@@ -154,26 +154,6 @@ spec:
                 port:
                   number: 9090
 ---
-# ── GE Viewer — data quality reports (namespace: platform) ───────────────────
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ge-viewer-ingress
-  namespace: platform
-spec:
-  ingressClassName: nginx
-  rules:
-    - host: "ge-viewer.FLOATING_IP_PLACEHOLDER.nip.io"
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: ge-viewer
-                port:
-                  number: 8080
----
 # ── Grafana (namespace: platform) ─────────────────────────────────────────────
 apiVersion: networking.k8s.io/v1
 kind: Ingress

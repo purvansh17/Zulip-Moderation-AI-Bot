@@ -232,6 +232,7 @@
       no_log: true
       changed_when: true
 
+
     # ── Apply manifests in dependency order ──────────────────────────────────
 
     - name: Apply PostgreSQL (shared DB for Zulip + MLflow)
@@ -300,6 +301,7 @@
       environment:
         KUBECONFIG: "{{ kubeconfig }}"
       changed_when: true
+
 
     - name: Apply Prometheus
       ansible.builtin.shell: kubectl apply -f {{ manifest_dest }}/platform/prometheus.yaml
