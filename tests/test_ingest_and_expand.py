@@ -9,9 +9,7 @@ def test_ingest_csv_triggers_initial_snapshot(tmp_path):
     csv_path = tmp_path / "sample.csv"
     csv_path.write_text("text,is_suicide,is_toxicity\nhello,0,0\n", encoding="utf-8")
 
-    chunk = pd.DataFrame(
-        [{"text": "hello", "is_suicide": 0, "is_toxicity": 0}]
-    )
+    chunk = pd.DataFrame([{"text": "hello", "is_suicide": 0, "is_toxicity": 0}])
     minio = MagicMock()
     minio.bucket_exists.return_value = True
 

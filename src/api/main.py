@@ -6,8 +6,8 @@ from typing import Any
 
 from fastapi import FastAPI
 
-from src.data.training_snapshot_trigger import queue_training_snapshot
 from src.data.text_cleaner import TextCleaner
+from src.data.training_snapshot_trigger import queue_training_snapshot
 from src.utils.config import config
 from src.utils.db import get_db_connection
 from src.utils.minio_client import get_minio_client
